@@ -1,0 +1,23 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/world/TestArena.tscn" id="1_test_arena"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/world/EnemySpawner.tscn" id="3_enemy_spawner"]
+[ext_resource type="PackedScene" path="res://ui/screens/PlayerHud.tscn" id="4_player_hud"]
+[ext_resource type="PackedScene" path="res://ui/screens/GameOverScreen.tscn" id="5_game_over_screen"]
+
+[node name="Main" type="Node2D"]
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="TestArena" parent="World" instance=ExtResource("1_test_arena")]
+
+[node name="Player" parent="World" instance=ExtResource("2_player")]
+
+[node name="EnemySpawner" parent="World" instance=ExtResource("3_enemy_spawner")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="PlayerHud" parent="UI" instance=ExtResource("4_player_hud")]
+
+[node name="GameOverScreen" parent="UI" instance=ExtResource("5_game_over_screen")]

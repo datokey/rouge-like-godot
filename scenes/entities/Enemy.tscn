@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/EnemyController.gd" id="1_enemy_controller"]
+[ext_resource type="Resource" path="res://resources/actors/enemy_dummy.tres" id="2_enemy_config"]
+[ext_resource type="PackedScene" path="res://scenes/entities/HealthPickup.tscn" id="3_health_pickup"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_enemy_body"]
+size = Vector2(30, 30)
+
+[node name="Enemy" type="CharacterBody2D" groups=["enemy"]]
+script = ExtResource("1_enemy_controller")
+config = ExtResource("2_enemy_config")
+health_pickup_scene = ExtResource("3_health_pickup")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.95, 0.22, 0.18, 1)
+polygon = PackedVector2Array(-15, -15, 15, -15, 15, 15, -15, 15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_enemy_body")

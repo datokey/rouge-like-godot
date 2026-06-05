@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="PlayerConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/PlayerConfig.gd" id="1_player_config"]
+
+[resource]
+script = ExtResource("1_player_config")
+max_hp = 100
+move_speed = 220.0
+projectile_damage = 1
+attack_cooldown = 0.25
+attack_range = 520.0

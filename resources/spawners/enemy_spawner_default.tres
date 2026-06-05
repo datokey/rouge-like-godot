@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SpawnerConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/SpawnerConfig.gd" id="1_spawner_config"]
+
+[resource]
+script = ExtResource("1_spawner_config")
+spawn_interval = 2.0
+spawn_interval_min = 0.8
+spawn_interval_decay = 0.08
+spawn_count = 1
+spawn_count_max = 8
+spawn_count_increase_every = 12.0
+playable_half_size = Vector2(600, 320)
+camera_half_size = Vector2(320, 180)
+spawn_margin = 80.0

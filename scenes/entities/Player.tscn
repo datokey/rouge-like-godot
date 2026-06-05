@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/PlayerController.gd" id="1_player_controller"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Projectile.tscn" id="2_projectile"]
+[ext_resource type="Resource" path="res://resources/actors/player_default.tres" id="3_player_config"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player_body"]
+size = Vector2(28, 28)
+
+[node name="Player" type="CharacterBody2D" groups=["player"]]
+script = ExtResource("1_player_controller")
+config = ExtResource("3_player_config")
+projectile_scene = ExtResource("2_projectile")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(0.2, 0.75, 1, 1)
+polygon = PackedVector2Array(-14, -14, 14, -14, 14, 14, -14, 14)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_player_body")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+enabled = true
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+zoom = Vector2(2, 2)
+limit_left = -640
+limit_top = -360
+limit_right = 640
+limit_bottom = 360

@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="ProjectileConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/ProjectileConfig.gd" id="1_projectile_config"]
+
+[resource]
+script = ExtResource("1_projectile_config")
+speed = 520.0
+lifetime = 1.2

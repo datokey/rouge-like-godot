@@ -1,0 +1,10 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/EnemySpawner.gd" id="1_enemy_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Enemy.tscn" id="2_enemy"]
+[ext_resource type="Resource" path="res://resources/spawners/enemy_spawner_default.tres" id="3_spawner_config"]
+
+[node name="EnemySpawner" type="Node2D"]
+script = ExtResource("1_enemy_spawner")
+enemy_scene = ExtResource("2_enemy")
+config = ExtResource("3_spawner_config")
