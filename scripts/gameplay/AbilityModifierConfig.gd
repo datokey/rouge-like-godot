@@ -46,3 +46,19 @@ func get_rarity_multiplier(rarity: int) -> float:
 			return legendary_multiplier
 		_:
 			return common_multiplier
+
+
+func get_rarity_name(rarity: int) -> String:
+	match rarity:
+		Rarity.COMMON:
+			return "Common"
+		Rarity.UNCOMMON:
+			return "Uncommon"
+		Rarity.RARE:
+			return "Rare"
+		Rarity.EPIC:
+			return "Epic"
+		Rarity.LEGENDARY:
+			return "Legendary"
+		_:
+			return "Common"

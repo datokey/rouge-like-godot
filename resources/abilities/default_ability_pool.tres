@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AbilityPoolConfig" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/AbilityPoolConfig.gd" id="1_ability_pool_config"]
+[ext_resource type="Resource" path="res://resources/abilities/bullet_damage.tres" id="2_bullet_damage"]
+[ext_resource type="Resource" path="res://resources/abilities/attack_speed.tres" id="3_attack_speed"]
+[ext_resource type="Resource" path="res://resources/abilities/max_hp.tres" id="4_max_hp"]
+
+[resource]
+script = ExtResource("1_ability_pool_config")
+offer_count = 3
+abilities = Array[Resource]([ExtResource("2_bullet_damage"), ExtResource("3_attack_speed"), ExtResource("4_max_hp")])
+rarity_values = Array[int]([0, 1, 2, 3, 4])
+rarity_weights = Array[int]([55, 25, 13, 6, 1])

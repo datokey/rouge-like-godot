@@ -61,6 +61,8 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
   Damage senjata, interval serangan, dan range auto-shoot.
 - `resources/abilities/default_ability_modifiers.tres`
   Default nilai modifier ability dan multiplier rarity.
+- `resources/abilities/default_ability_pool.tres`
+  Daftar ability yang dapat muncul saat player naik level, termasuk peluang rarity.
 - `resources/projectiles/player_projectile.tres`
   Kecepatan dan lifetime projectile.
 - `resources/spawners/enemy_spawner_default.tres`
@@ -82,10 +84,12 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 6. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
 7. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
 8. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
-9. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
-10. `PlayerHud` mendengar event `player_health_changed` dan `player_xp_changed` dari `EventBus`.
-11. Jika HP player habis, `PlayerController` memanggil `player_died`.
-12. `GameOverScreen` muncul dan menyediakan tombol Restart/Keluar.
+9. `AbilitySelectionScreen` pause game, menampilkan 3 pilihan ability, lalu mengirim pilihan lewat event `ability_selected`.
+10. Player menerapkan ability terpilih, lalu game berjalan kembali.
+11. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
+12. `PlayerHud` mendengar event `player_health_changed` dan `player_xp_changed` dari `EventBus`.
+13. Jika HP player habis, `PlayerController` memanggil `player_died`.
+14. `GameOverScreen` muncul dan menyediakan tombol Restart/Keluar.
 
 ## Catatan maintenance
 
@@ -96,6 +100,7 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Ability modifier player bisa memakai `apply_ability_modifier(modifier_type, base_value, rarity)`.
 - Default ability modifier: damage `+5%`, attack speed `+15%`, dan max HP `+5`.
 - Rarity multiplier diatur di `AbilityModifierConfig`; contoh damage `20%` rarity Epic menghasilkan `20% * 1.5 = 30%`.
+- Ability baru bisa dibuat sebagai resource `AbilityDefinition`, lalu dimasukkan ke `default_ability_pool.tres`.
 - Attack speed player memakai `WeaponConfig.attack_interval`; upgrade attack speed bisa memanggil `add_attack_speed_modifier()` untuk menambah attack speed berbasis persen.
 - Base damage enemy ada di `EnemyConfig`; kenaikan damage seiring waktu disimpan sebagai bonus runtime dari `SpawnerConfig`.
 - Untuk komunikasi antar sistem, pakai signal di `autoload/EventBus.gd`.

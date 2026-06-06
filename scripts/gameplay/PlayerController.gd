@@ -24,6 +24,7 @@ var move_speed_modifier := 0.0
 
 
 func _ready() -> void:
+	EventBus.ability_selected.connect(_on_ability_selected)
 	current_hp = get_max_hp()
 	current_xp = 0
 	current_level = 1
@@ -270,6 +271,13 @@ func _sync_xp_state() -> void:
 	GameState.player_xp = current_xp
 	GameState.player_required_xp = get_xp_required_for_next_level()
 	GameState.player_level = current_level
+
+
+func _on_ability_selected(ability: Resource, rarity: int) -> void:
+	if ability == null or not ability.has_method("apply_to_player"):
+		return
+
+	ability.call("apply_to_player", self, ability_modifier_config, rarity)
 
 
 func _apply_max_hp_modifier(amount: int) -> void:
