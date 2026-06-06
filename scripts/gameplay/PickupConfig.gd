@@ -1,5 +1,6 @@
 extends Resource
 class_name PickupConfig
 
-# Data balancing pickup item.
-@export var heal_amount := 5
+# Data balancing pickup item. kind bisa "hp" atau "xp".
+@export var kind := "hp"
+@export var amount := 5

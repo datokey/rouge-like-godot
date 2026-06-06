@@ -1,9 +1,12 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/PlayerHud.gd" id="1_player_hud"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp_fill"]
 bg_color = Color(0.18, 0.82, 0.32, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xp_fill"]
+bg_color = Color(0.22, 0.62, 1, 1)
 
 [node name="PlayerHud" type="Control"]
 anchors_preset = 15
@@ -17,7 +20,7 @@ script = ExtResource("1_player_hud")
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 244.0
-offset_bottom = 62.0
+offset_bottom = 106.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HpPanel"]
 theme_override_constants/margin_left = 10
@@ -39,3 +42,15 @@ max_value = 100.0
 value = 100.0
 show_percentage = false
 theme_override_styles/fill = SubResource("StyleBoxFlat_hp_fill")
+
+[node name="XpLabel" type="Label" parent="HpPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "LV 1  XP 0 / 10"
+
+[node name="XpBar" type="ProgressBar" parent="HpPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(208, 12)
+max_value = 10.0
+value = 0.0
+show_percentage = false
+theme_override_styles/fill = SubResource("StyleBoxFlat_xp_fill")

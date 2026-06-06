@@ -8,6 +8,9 @@ class_name SpawnerConfig
 @export var spawn_count := 1
 @export var spawn_count_max := 8
 @export var spawn_count_increase_every := 12.0
+@export var enemy_damage_increase_every := 20.0
+@export var enemy_damage_increase_amount := 1
+@export var enemy_damage_max_bonus := 20
 @export var playable_half_size := Vector2(600, 320)
 @export var camera_half_size := Vector2(320, 180)
 @export var spawn_margin := 80.0

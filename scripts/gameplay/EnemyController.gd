@@ -2,12 +2,17 @@ extends CharacterBody2D
 
 # Config menyimpan stat enemy dan peluang drop agar balancing tidak hardcoded.
 @export var config: EnemyConfig
-@export var health_pickup_scene: PackedScene
+@export var pickup_item_scene: PackedScene
+@export var health_pickup_config: PickupConfig
+@export var xp_pickup_config: PickupConfig
+
+@onready var drop_point: Node2D = $DropPoint
 
 var current_hp := 0
 var contact_timer := 0.0
 var target: Node2D
 var is_dead := false
+var contact_damage_bonus := 0
 
 
 func _ready() -> void:
@@ -55,29 +60,45 @@ func _try_damage_player() -> void:
 		var collider := collision.get_collider()
 
 		if collider.is_in_group("player") and collider.has_method("take_damage"):
-			collider.take_damage(config.contact_damage)
+			collider.take_damage(get_contact_damage())
 			contact_timer = config.contact_cooldown
 			return
 
 
 func _die() -> void:
 	set_physics_process(false)
+	var drop_position := global_position
+	if drop_point != null:
+		drop_position = drop_point.global_position
 
-	if health_pickup_scene != null and Rng.chance(config.health_drop_chance):
-		# Spawn pickup ditunda karena fungsi ini bisa dipanggil dari callback physics.
-		call_deferred("_drop_health_pickup", global_position)
+	if config.xp_drop > 0 and xp_pickup_config != null:
+		var xp_config: PickupConfig = xp_pickup_config.duplicate() as PickupConfig
+		xp_config.amount = config.xp_drop
+		call_deferred("_drop_pickup", drop_position, xp_config)
+
+	if health_pickup_config != null and Rng.chance(config.health_drop_chance):
+		call_deferred("_drop_pickup", drop_position, health_pickup_config)
 
 	# queue_free juga ditunda untuk menghindari error "flushing queries" Godot Physics.
 	call_deferred("queue_free")
 
 
-func _drop_health_pickup(drop_position: Vector2) -> void:
-	if health_pickup_scene == null or get_parent() == null:
+func _drop_pickup(drop_position: Vector2, pickup_config: PickupConfig) -> void:
+	if pickup_item_scene == null or pickup_config == null or get_parent() == null:
 		return
 
-	var pickup := health_pickup_scene.instantiate() as Node2D
+	var pickup := pickup_item_scene.instantiate() as Node2D
 	if pickup == null:
 		return
 
+	pickup.set("config", pickup_config)
 	get_parent().add_child(pickup)
 	pickup.global_position = drop_position
+
+
+func set_contact_damage_bonus(value: int) -> void:
+	contact_damage_bonus = value
+
+
+func get_contact_damage() -> int:
+	return maxi(0, config.contact_damage + contact_damage_bonus)

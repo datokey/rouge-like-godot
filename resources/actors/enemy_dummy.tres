@@ -8,4 +8,5 @@ max_hp = 3
 move_speed = 90.0
 contact_damage = 1
 contact_cooldown = 0.7
+xp_drop = 1
 health_drop_chance = 0.35

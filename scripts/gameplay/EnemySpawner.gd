@@ -7,8 +7,10 @@ extends Node2D
 var player: Node2D
 var spawn_timer := 0.0
 var scaling_timer := 0.0
+var damage_scaling_timer := 0.0
 var current_spawn_interval := 0.0
 var current_spawn_count := 0
+var current_enemy_damage_bonus := 0
 
 
 func _ready() -> void:
@@ -22,6 +24,7 @@ func _ready() -> void:
 	current_spawn_count = config.spawn_count
 	spawn_timer = current_spawn_interval
 	scaling_timer = config.spawn_count_increase_every
+	damage_scaling_timer = config.enemy_damage_increase_every
 
 
 func _physics_process(delta: float) -> void:
@@ -30,6 +33,7 @@ func _physics_process(delta: float) -> void:
 
 	spawn_timer -= delta
 	scaling_timer -= delta
+	damage_scaling_timer -= delta
 
 	if spawn_timer <= 0.0:
 		_spawn_wave()
@@ -39,6 +43,10 @@ func _physics_process(delta: float) -> void:
 		_scale_spawn_pressure()
 		scaling_timer = config.spawn_count_increase_every
 
+	if damage_scaling_timer <= 0.0:
+		_scale_enemy_damage()
+		damage_scaling_timer = config.enemy_damage_increase_every
+
 
 func _spawn_wave() -> void:
 	for index in range(current_spawn_count):
@@ -47,6 +55,8 @@ func _spawn_wave() -> void:
 			continue
 
 		get_parent().add_child(enemy)
+		if enemy.has_method("set_contact_damage_bonus"):
+			enemy.set_contact_damage_bonus(current_enemy_damage_bonus)
 		enemy.global_position = _get_spawn_position(index)
 
 
@@ -93,6 +103,13 @@ func _scale_spawn_pressure() -> void:
 	# Tekanan spawn naik pelan-pelan: jumlah enemy naik, interval spawn turun.
 	current_spawn_count = mini(current_spawn_count + 1, config.spawn_count_max)
 	current_spawn_interval = maxf(current_spawn_interval - config.spawn_interval_decay, config.spawn_interval_min)
+
+
+func _scale_enemy_damage() -> void:
+	current_enemy_damage_bonus = mini(
+		current_enemy_damage_bonus + config.enemy_damage_increase_amount,
+		config.enemy_damage_max_bonus
+	)
 
 
 func _random_camera_x() -> int:

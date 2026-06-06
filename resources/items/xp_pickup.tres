@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_pickup_config")
-kind = "hp"
-amount = 5
+kind = "xp"
+amount = 1
