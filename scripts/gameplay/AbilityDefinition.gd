@@ -4,7 +4,13 @@ class_name AbilityDefinition
 @export var id := ""
 @export var display_name := "Ability"
 @export_multiline var description := ""
-@export_enum("Damage Percent", "Attack Speed Percent", "Max HP Flat") var modifier_type: int = AbilityModifierConfig.ModifierType.DAMAGE_PERCENT
+@export_enum(
+	"Damage Percent",
+	"Attack Speed Percent",
+	"Max HP Flat",
+	"Projectile Count Flat",
+	"Move Speed Percent"
+) var modifier_type: int = AbilityModifierConfig.ModifierType.DAMAGE_PERCENT
 @export var base_value := 0.0
 
 
@@ -23,6 +29,10 @@ func get_value_text(value: float) -> String:
 			return "+%d%%" % roundi(value * 100.0)
 		AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
 			return "+%d" % roundi(value)
+		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
+			return "+%d" % roundi(value)
+		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
+			return "+%d%%" % roundi(value * 100.0)
 		_:
 			return "+0"
 

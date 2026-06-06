@@ -53,6 +53,6 @@ func _on_area_entered(area: Area2D) -> void:
 	var owner_node := area.get_parent()
 	if owner_node != null and owner_node.is_in_group("enemy") and owner_node.has_method("take_damage"):
 		has_hit = true
-		owner_node.take_damage(damage)
+		owner_node.take_damage(damage, direction, global_position)
 		# Menghindari perubahan state Area2D langsung dari callback area_entered.
 		call_deferred("queue_free")

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/vfx/ImpactVFX.gd" id="1_impact_vfx"]
+
+[node name="ImpactVFX" type="Node2D"]
+script = ExtResource("1_impact_vfx")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(1, 0.92, 0.42, 0.95)
+polygon = PackedVector2Array(0, -8, 2, -2, 8, 0, 2, 2, 0, 8, -2, 2, -8, 0, -2, -2)

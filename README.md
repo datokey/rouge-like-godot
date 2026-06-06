@@ -10,9 +10,11 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
 - Enemy mengejar player dan memberi damage saat bersentuhan.
 - Player menembak otomatis ke enemy terdekat seperti Vampire Survivors.
 - Projectile mengurangi HP enemy.
+- Enemy memberi hit feedback saat terkena projectile: knockback kecil, hit flash, impact VFX, dan wadah sound hit.
 - Enemy men-drop pickup XP dan punya peluang drop pickup HP saat mati.
-- Pickup HP menyembuhkan player, pickup XP menambah XP player.
-- HUD kiri atas menampilkan HP player dan XP bar.
+- Pickup HP menyembuhkan player, pickup XP menambah XP player, dan pickup Magnet menarik pickup HP/XP ke player.
+- HUD kiri atas menampilkan HP player, XP bar, dan progress survival run.
+- Player menang jika berhasil bertahan hidup sampai survival timer selesai.
 - Saat player mati, muncul layar game over dengan tombol Restart dan Keluar.
 
 ## Struktur folder penting
@@ -33,6 +35,8 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
   Data balancing berbentuk `.tres`, supaya angka gameplay tidak hardcoded di script.
 - `resources/abilities/`
   Data default modifier ability dan multiplier rarity.
+- `resources/run/`
+  Data target durasi survival dan placeholder scene berikutnya.
 - `ui/screens/`
   Scene UI.
 
@@ -47,7 +51,7 @@ Isi utamanya:
 - `World`
   Menampung arena, player, spawner, enemy, projectile, dan pickup.
 - `UI`
-  Menampung `PlayerHud` dan `GameOverScreen`.
+  Menampung `PlayerHud`, `AbilitySelectionScreen`, `WinScreen`, dan `GameOverScreen`.
 
 ## Resource config
 
@@ -65,44 +69,63 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
   Daftar ability yang dapat muncul saat player naik level, termasuk peluang rarity.
 - `resources/projectiles/player_projectile.tres`
   Kecepatan dan lifetime projectile.
+- `resources/feedback/default_hit_feedback.tres`
+  Tuning hit feedback enemy seperti knockback, flash, impact VFX, dan hit stop lokal.
 - `resources/spawners/enemy_spawner_default.tres`
-  Interval spawn, jumlah enemy per wave, scaling spawn, scaling damage enemy, dan batas area spawn.
+  Dynamic spawn interval, scaling jumlah enemy per spawn, batas alive enemy, scaling damage enemy, dan batas area spawn.
+- `resources/run/default_run_config.tres`
+  Target survival timer dan `next_scene_path` untuk persiapan pindah scene setelah menang.
 - `resources/items/health_pickup.tres`
   Pickup HP default/fallback dengan jenis `hp`; jumlah heal drop enemy diisi dari weighted HP drop `EnemyConfig`.
 - `resources/items/xp_pickup.tres`
   Pickup XP dengan jenis `xp` dan jumlah XP default.
+- `resources/items/magnet_pickup.tres`
+  Pickup Magnet dengan jenis `magnet`.
+- `resources/items/magnet_default.tres`
+  Durasi, radius, pull speed, dan batch size efek Magnet.
 - `resources/xp/default_xp.tres`
   XP yang dibutuhkan per level dan multiplier pertumbuhan level.
 
 ## Alur gameplay
 
-1. `PlayerController` membaca `PlayerConfig`, `WeaponConfig`, dan `XPConfig`, lalu mengisi HP awal ke `GameState`.
-2. `EnemySpawner` membaca `SpawnerConfig`, lalu spawn enemy secara berkala.
-3. `EnemyController` membaca `EnemyConfig`, lalu mengejar player.
-4. Player auto-shoot ke enemy terdekat dalam range.
-5. `Projectile` memanggil `take_damage()` pada enemy yang terkena.
-6. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
-7. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
-8. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
-9. `AbilitySelectionScreen` pause game, menampilkan 3 pilihan ability, lalu mengirim pilihan lewat event `ability_selected`.
-10. Player menerapkan ability terpilih, lalu game berjalan kembali.
-11. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
-12. `PlayerHud` mendengar event `player_health_changed` dan `player_xp_changed` dari `EventBus`.
-13. Jika HP player habis, `PlayerController` memanggil `player_died`.
-14. `GameOverScreen` muncul dan menyediakan tombol Restart/Keluar.
+1. `Main` memanggil `RunManager.start_run()` saat scene dibuka/reload.
+2. `RunManager` reset run, mengisi seed, dan mulai menghitung survival timer.
+3. `PlayerController` membaca `PlayerConfig`, `WeaponConfig`, dan `XPConfig`, lalu mengisi HP awal ke `GameState`.
+4. `EnemySpawner` membaca `SpawnerConfig`, lalu spawn enemy secara berkala.
+5. `EnemyController` membaca `EnemyConfig`, lalu mengejar player.
+6. Player auto-shoot ke enemy terdekat dalam range.
+7. `Projectile` memanggil `take_damage()` pada enemy yang terkena.
+8. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
+9. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
+10. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
+11. `AbilitySelectionScreen` pause game, menampilkan 3 pilihan ability, lalu mengirim pilihan lewat event `ability_selected`.
+12. Player menerapkan ability terpilih, lalu game berjalan kembali.
+13. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
+14. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
+15. Jika HP player habis sebelum survival timer selesai, `RunManager` memicu lose state dan `GameOverScreen` muncul.
+16. Jika survival timer mencapai target, `RunManager` memicu win state dan `WinScreen` muncul.
 
 ## Catatan maintenance
 
 - Untuk balancing, utamakan edit file `.tres` di `resources/`, bukan script.
 - Weighted XP gem diatur di `EnemyConfig` lewat `xp_drop_values` dan `xp_drop_weights`.
 - Weighted HP pickup diatur di `EnemyConfig` lewat `hp_drop_values` dan `hp_drop_weights`; peluang drop HP memakai `health_drop_chance`.
+- Rarity/chance drop Magnet diatur lewat `EnemyConfig.magnet_drop_chance`.
+- Efek Magnet hanya menarik pickup `hp` dan `xp`; durasi, radius, pull speed, dan batch activation diatur lewat `MagnetConfig`.
 - Base damage senjata player ada di `WeaponConfig.damage`; upgrade damage persen bisa memakai `add_damage_percent_modifier()` atau `apply_ability_modifier()`.
 - Ability modifier player bisa memakai `apply_ability_modifier(modifier_type, base_value, rarity)`.
 - Default ability modifier: damage `+5%`, attack speed `+15%`, dan max HP `+5`.
+- Modifier tambahan tersedia untuk projectile count `+1` flat dan movement speed `+10%`.
 - Rarity multiplier diatur di `AbilityModifierConfig`; contoh damage `20%` rarity Epic menghasilkan `20% * 1.5 = 30%`.
 - Ability baru bisa dibuat sebagai resource `AbilityDefinition`, lalu dimasukkan ke `default_ability_pool.tres`.
 - Attack speed player memakai `WeaponConfig.attack_interval`; upgrade attack speed bisa memanggil `add_attack_speed_modifier()` untuk menambah attack speed berbasis persen.
 - Base damage enemy ada di `EnemyConfig`; kenaikan damage seiring waktu disimpan sebagai bonus runtime dari `SpawnerConfig`.
+- Hit feedback enemy diatur lewat `HitFeedbackConfig`; knockback memakai controlled displacement yang di-clamp, bukan physics force bebas.
+- Dynamic spawn interval enemy diatur lewat `SpawnerConfig`: `initial_spawn_interval`, `spawn_interval_decrease_every`, `spawn_interval_decrease_amount`, dan `minimum_spawn_interval`.
+- Scaling jumlah enemy per spawn diatur lewat `SpawnerConfig`: `initial_spawn_count`, `spawn_count_increase_every`, `spawn_count_increase_amount`, dan `maximum_spawn_count`.
+- Batas enemy hidup bersamaan diatur lewat `SpawnerConfig.maximum_alive_enemies`; default prototype adalah `50`.
+- Survival win condition diatur lewat `RunConfig.survival_duration`; default prototype adalah `300` detik.
+- `RunConfig.next_scene_path` disiapkan untuk pindah scene setelah menang, tetapi prototype saat ini masih boleh kosong.
 - Untuk komunikasi antar sistem, pakai signal di `autoload/EventBus.gd`.
 - Event `player_level_up` dipakai sebagai trigger level up; UI/upgrade system nanti bisa mendengarkan event ini.
 - Untuk state global seperti HP player dan mode game, pakai `autoload/GameState.gd`.

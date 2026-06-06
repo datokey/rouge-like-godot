@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/PlayerHud.gd" id="1_player_hud"]
 
@@ -7,6 +7,9 @@ bg_color = Color(0.18, 0.82, 0.32, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_xp_fill"]
 bg_color = Color(0.22, 0.62, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run_fill"]
+bg_color = Color(1, 0.78, 0.24, 1)
 
 [node name="PlayerHud" type="Control"]
 anchors_preset = 15
@@ -20,7 +23,7 @@ script = ExtResource("1_player_hud")
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 244.0
-offset_bottom = 106.0
+offset_bottom = 140.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HpPanel"]
 theme_override_constants/margin_left = 10
@@ -54,3 +57,15 @@ max_value = 10.0
 value = 0.0
 show_percentage = false
 theme_override_styles/fill = SubResource("StyleBoxFlat_xp_fill")
+
+[node name="RunLabel" type="Label" parent="HpPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+text = "RUN 00:00 / 05:00"
+
+[node name="RunBar" type="ProgressBar" parent="HpPanel/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(208, 12)
+max_value = 300.0
+value = 0.0
+show_percentage = false
+theme_override_styles/fill = SubResource("StyleBoxFlat_run_fill")

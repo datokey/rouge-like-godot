@@ -34,7 +34,7 @@ func _on_player_level_up(level: int, _remaining_xp: int, _next_required_xp: int)
 func _show_next_selection() -> void:
 	if is_selecting or pending_level_ups <= 0:
 		return
-	if GameState.mode == GameState.GameMode.GAME_OVER:
+	if GameState.mode == GameState.GameMode.GAME_OVER or GameState.mode == GameState.GameMode.VICTORY:
 		return
 
 	pending_level_ups -= 1
@@ -121,7 +121,7 @@ func _close_selection() -> void:
 
 
 func _resume_game() -> void:
-	if GameState.mode != GameState.GameMode.GAME_OVER:
+	if GameState.mode == GameState.GameMode.PAUSED:
 		GameState.mode = GameState.GameMode.RUNNING
 
 	get_tree().paused = false

@@ -5,6 +5,8 @@ enum ModifierType {
 	DAMAGE_PERCENT,
 	ATTACK_SPEED_PERCENT,
 	MAX_HP_FLAT,
+	PROJECTILE_COUNT_FLAT,
+	MOVE_SPEED_PERCENT,
 }
 
 enum Rarity {
@@ -19,6 +21,8 @@ enum Rarity {
 @export var default_damage_percent := 0.05
 @export var default_attack_speed_percent := 0.15
 @export var default_max_hp_flat := 5.0
+@export var default_projectile_count_flat := 1.0
+@export var default_move_speed_percent := 0.1
 
 # Multiplier rarity dipisah agar balancing rarity bisa diubah dari resource.
 @export var common_multiplier := 1.0

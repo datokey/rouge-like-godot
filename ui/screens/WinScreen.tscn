@@ -1,0 +1,84 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/WinScreen.gd" id="1_win_screen"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overlay_panel"]
+bg_color = Color(0.06, 0.08, 0.07, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.38, 0.72, 0.45, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_restart_button"]
+bg_color = Color(0.2, 0.6, 0.32, 1)
+
+[node name="WinScreen" type="Control"]
+process_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_win_screen")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(380, 230)
+theme_override_styles/panel = SubResource("StyleBoxFlat_overlay_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer"]
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer"]
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+text = "Kamu Menang"
+
+[node name="Description" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+horizontal_alignment = 1
+text = "Kamu berhasil bertahan selama 05:00."
+autowrap_mode = 3
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="ContinueButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(104, 36)
+text = "Lanjut"
+theme_override_styles/normal = SubResource("StyleBoxFlat_restart_button")
+
+[node name="RestartButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(116, 36)
+text = "Restart"
+theme_override_styles/normal = SubResource("StyleBoxFlat_restart_button")
+
+[node name="QuitButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 36)
+text = "Keluar"

@@ -19,8 +19,10 @@ func _show_game_over() -> void:
 
 
 func _restart_game() -> void:
+	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 
 func _quit_game() -> void:
+	get_tree().paused = false
 	get_tree().quit()

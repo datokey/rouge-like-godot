@@ -5,6 +5,7 @@ extends CharacterBody2D
 @export var weapon_config: WeaponConfig
 @export var xp_config: XPConfig
 @export var ability_modifier_config: AbilityModifierConfig
+@export var magnet_config: Resource
 @export var projectile_scene: PackedScene
 
 @onready var pickup_area_collision: CollisionShape2D = $PickupArea/CollisionShape2D
@@ -21,6 +22,10 @@ var attack_interval_modifier := 0.0
 var attack_speed_percent_modifier := 0.0
 var max_hp_modifier := 0
 var move_speed_modifier := 0.0
+var move_speed_percent_modifier := 0.0
+var projectile_count_modifier := 0
+var magnet_remaining := 0.0
+var magnet_activation_queue: Array[WeakRef] = []
 
 
 func _ready() -> void:
@@ -29,7 +34,6 @@ func _ready() -> void:
 	current_xp = 0
 	current_level = 1
 	_apply_pickup_radius()
-	GameState.mode = GameState.GameMode.RUNNING
 
 	# GameState menyimpan nilai global, sedangkan EventBus memberi tahu UI.
 	_emit_health_changed()
@@ -37,6 +41,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_update_magnet(delta)
 	attack_timer = maxf(attack_timer - delta, 0.0)
 
 	var input_direction := Input.get_vector(
@@ -61,9 +66,7 @@ func _try_auto_attack() -> void:
 	if target == null:
 		return
 
-	var projectile := projectile_scene.instantiate()
-	get_tree().current_scene.add_child(projectile)
-	projectile.call("setup", global_position, target.global_position, get_weapon_damage())
+	_shoot_projectiles(target)
 	attack_timer = get_attack_interval()
 
 
@@ -90,8 +93,7 @@ func take_damage(amount: int) -> void:
 
 	if current_hp <= 0:
 		# Player dimatikan lewat mode global dan signal agar UI/gameplay tidak saling tergantung.
-		GameState.set_game_over()
-		EventBus.player_died.emit()
+		RunManager.lose_run()
 		set_physics_process(false)
 		modulate = Color(0.45, 0.45, 0.45, 1.0)
 
@@ -127,7 +129,8 @@ func get_move_speed() -> float:
 	if config != null:
 		base_speed = config.move_speed
 
-	return base_speed + move_speed_modifier
+	var flat_speed := base_speed + move_speed_modifier
+	return maxf(0.0, flat_speed * (1.0 + move_speed_percent_modifier))
 
 
 func get_max_hp() -> int:
@@ -198,6 +201,37 @@ func add_max_hp_modifier(
 	)
 
 
+func add_projectile_count_modifier(
+	base_amount: float = -1.0,
+	rarity: int = AbilityModifierConfig.Rarity.COMMON
+) -> float:
+	return apply_ability_modifier(
+		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT,
+		base_amount,
+		rarity
+	)
+
+
+func add_move_speed_modifier(
+	base_percent: float = -1.0,
+	rarity: int = AbilityModifierConfig.Rarity.COMMON
+) -> float:
+	return apply_ability_modifier(
+		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT,
+		base_percent,
+		rarity
+	)
+
+
+func activate_magnet() -> void:
+	if magnet_config == null:
+		return
+
+	magnet_remaining = maxf(magnet_remaining, _get_magnet_duration())
+	_refresh_magnet_activation_queue()
+	_process_magnet_activation_queue()
+
+
 func apply_ability_modifier(
 	modifier_type: int,
 	base_value: float = -1.0,
@@ -213,6 +247,11 @@ func apply_ability_modifier(
 		AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
 			final_value = float(roundi(final_value))
 			_apply_max_hp_modifier(int(final_value))
+		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
+			final_value = float(roundi(final_value))
+			_apply_projectile_count_modifier(int(final_value))
+		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
+			move_speed_percent_modifier += final_value
 		_:
 			return 0.0
 
@@ -249,6 +288,10 @@ func get_attack_range() -> float:
 		return 0.0
 
 	return weapon_config.attack_range
+
+
+func get_projectile_count() -> int:
+	return maxi(1, 1 + projectile_count_modifier)
 
 
 func get_xp_required_for_next_level() -> int:
@@ -289,6 +332,13 @@ func _apply_max_hp_modifier(amount: int) -> void:
 	_emit_health_changed()
 
 
+func _apply_projectile_count_modifier(amount: int) -> void:
+	if amount == 0:
+		return
+
+	projectile_count_modifier = maxi(0, projectile_count_modifier + amount)
+
+
 func _get_default_modifier_value(modifier_type: int) -> float:
 	if ability_modifier_config != null:
 		match modifier_type:
@@ -298,6 +348,10 @@ func _get_default_modifier_value(modifier_type: int) -> float:
 				return ability_modifier_config.default_attack_speed_percent
 			AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
 				return ability_modifier_config.default_max_hp_flat
+			AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
+				return ability_modifier_config.default_projectile_count_flat
+			AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
+				return ability_modifier_config.default_move_speed_percent
 
 	match modifier_type:
 		AbilityModifierConfig.ModifierType.DAMAGE_PERCENT:
@@ -306,8 +360,120 @@ func _get_default_modifier_value(modifier_type: int) -> float:
 			return 0.15
 		AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
 			return 5.0
+		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
+			return 1.0
+		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
+			return 0.1
 		_:
 			return 0.0
+
+
+func _shoot_projectiles(target: Node2D) -> void:
+	var projectile_count := get_projectile_count()
+	var base_direction := global_position.direction_to(target.global_position)
+	var spread_step := deg_to_rad(8.0)
+	var start_offset := -float(projectile_count - 1) * 0.5
+
+	for index in range(projectile_count):
+		var projectile := projectile_scene.instantiate()
+		get_tree().current_scene.add_child(projectile)
+
+		var spread_angle := (start_offset + float(index)) * spread_step
+		var shot_direction := base_direction.rotated(spread_angle)
+		var target_position := global_position + shot_direction * 100.0
+		projectile.call("setup", global_position, target_position, get_weapon_damage())
+
+
+func _update_magnet(delta: float) -> void:
+	if magnet_remaining <= 0.0:
+		return
+
+	magnet_remaining = maxf(magnet_remaining - delta, 0.0)
+	_process_magnet_activation_queue()
+
+	if magnet_remaining <= 0.0:
+		magnet_activation_queue.clear()
+
+
+func _refresh_magnet_activation_queue() -> void:
+	magnet_activation_queue.clear()
+	var magnet_radius := _get_magnet_radius()
+
+	for pickup_node in get_tree().get_nodes_in_group("pickup_item"):
+		var pickup := pickup_node as Node2D
+		if pickup == null:
+			continue
+		if not pickup.has_method("can_be_magnetized") or not pickup.call("can_be_magnetized"):
+			continue
+		if magnet_radius > 0.0 and global_position.distance_to(pickup.global_position) > magnet_radius:
+			continue
+
+		magnet_activation_queue.append(weakref(pickup))
+
+
+func _process_magnet_activation_queue() -> void:
+	if magnet_config == null or magnet_remaining <= 0.0:
+		return
+
+	var batch_size := maxi(1, _get_magnet_activation_batch_size())
+	var processed_count := 0
+	var magnet_pull_speed := _get_magnet_pull_speed()
+	var magnet_radius := _get_magnet_radius()
+
+	while processed_count < batch_size and not magnet_activation_queue.is_empty():
+		var pickup_ref: WeakRef = magnet_activation_queue.pop_back()
+		processed_count += 1
+
+		if pickup_ref == null:
+			continue
+
+		var pickup := pickup_ref.get_ref() as Node
+		if pickup == null or not is_instance_valid(pickup):
+			continue
+		if not pickup.has_method("activate_magnet_pull"):
+			continue
+
+		pickup.call(
+			"activate_magnet_pull",
+			self,
+			magnet_remaining,
+			magnet_pull_speed,
+			magnet_radius
+		)
+
+
+func _get_magnet_duration() -> float:
+	return _get_magnet_float("duration", 5.0)
+
+
+func _get_magnet_radius() -> float:
+	return _get_magnet_float("radius", 0.0)
+
+
+func _get_magnet_pull_speed() -> float:
+	return _get_magnet_float("pull_speed", 420.0)
+
+
+func _get_magnet_activation_batch_size() -> int:
+	if magnet_config == null:
+		return 32
+
+	var value: Variant = magnet_config.get("activation_batch_size")
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return roundi(float(value))
+
+	return 32
+
+
+func _get_magnet_float(property_name: String, fallback: float) -> float:
+	if magnet_config == null:
+		return fallback
+
+	var value: Variant = magnet_config.get(property_name)
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return float(value)
+
+	return fallback
 
 
 func _apply_pickup_radius() -> void:

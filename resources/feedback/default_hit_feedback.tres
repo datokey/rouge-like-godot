@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="HitFeedbackConfig" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/HitFeedbackConfig.gd" id="1_hit_feedback_config"]
+[ext_resource type="PackedScene" path="res://scenes/vfx/ImpactVFX.tscn" id="2_impact_vfx"]
+
+[resource]
+script = ExtResource("1_hit_feedback_config")
+hit_knockback_force = 1.5
+hit_knockback_duration = 0.08
+max_knockback_distance = 0.3
+knockback_unit_size = 32.0
+hit_flash_duration = 0.08
+hit_flash_color = Color(1, 1, 1, 1)
+impact_vfx_scene = ExtResource("2_impact_vfx")
+impact_vfx_scale = 0.6
+hit_stop_duration = 0.02

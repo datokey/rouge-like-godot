@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MagnetConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/MagnetConfig.gd" id="1_magnet_config"]
+
+[resource]
+script = ExtResource("1_magnet_config")
+duration = 5.0
+radius = 0.0
+pull_speed = 420.0
+activation_batch_size = 32

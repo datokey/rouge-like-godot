@@ -11,3 +11,4 @@ class_name EnemyConfig
 @export var hp_drop_values: Array[int] = [5, 10, 15, 20, 25]
 @export var hp_drop_weights: Array[int] = [60, 23, 12, 4, 1]
 @export var health_drop_chance := 0.12
+@export var magnet_drop_chance := 0.03
