@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/gameplay/PlayerController.gd" id="1_player_controller"]
 [ext_resource type="PackedScene" path="res://scenes/entities/Projectile.tscn" id="2_projectile"]
 [ext_resource type="Resource" path="res://resources/actors/player_default.tres" id="3_player_config"]
 [ext_resource type="Resource" path="res://resources/weapons/basic_weapon.tres" id="4_weapon_config"]
 [ext_resource type="Resource" path="res://resources/xp/default_xp.tres" id="5_xp_config"]
+[ext_resource type="Resource" path="res://resources/abilities/default_ability_modifiers.tres" id="6_ability_modifier_config"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player_body"]
 size = Vector2(28, 28)
@@ -17,6 +18,7 @@ script = ExtResource("1_player_controller")
 config = ExtResource("3_player_config")
 weapon_config = ExtResource("4_weapon_config")
 xp_config = ExtResource("5_xp_config")
+ability_modifier_config = ExtResource("6_ability_modifier_config")
 projectile_scene = ExtResource("2_projectile")
 
 [node name="Visual" type="Polygon2D" parent="."]

@@ -4,6 +4,6 @@
 
 [resource]
 script = ExtResource("1_weapon_config")
-damage = 1
+damage = 10
 attack_interval = 0.25
 attack_range = 520.0

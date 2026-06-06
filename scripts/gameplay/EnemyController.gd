@@ -71,13 +71,18 @@ func _die() -> void:
 	if drop_point != null:
 		drop_position = drop_point.global_position
 
-	if config.xp_drop > 0 and xp_pickup_config != null:
+	var xp_amount := _roll_xp_drop_amount()
+	if xp_amount > 0 and xp_pickup_config != null:
 		var xp_config: PickupConfig = xp_pickup_config.duplicate() as PickupConfig
-		xp_config.amount = config.xp_drop
+		xp_config.amount = xp_amount
 		call_deferred("_drop_pickup", drop_position, xp_config)
 
 	if health_pickup_config != null and Rng.chance(config.health_drop_chance):
-		call_deferred("_drop_pickup", drop_position, health_pickup_config)
+		var hp_amount := _roll_hp_drop_amount()
+		if hp_amount > 0:
+			var hp_config: PickupConfig = health_pickup_config.duplicate() as PickupConfig
+			hp_config.amount = hp_amount
+			call_deferred("_drop_pickup", drop_position, hp_config)
 
 	# queue_free juga ditunda untuk menghindari error "flushing queries" Godot Physics.
 	call_deferred("queue_free")
@@ -93,6 +98,8 @@ func _drop_pickup(drop_position: Vector2, pickup_config: PickupConfig) -> void:
 
 	pickup.set("config", pickup_config)
 	get_parent().add_child(pickup)
+	if pickup.has_method("set_pickup_config"):
+		pickup.call("set_pickup_config", pickup_config)
 	pickup.global_position = drop_position
 
 
@@ -102,3 +109,34 @@ func set_contact_damage_bonus(value: int) -> void:
 
 func get_contact_damage() -> int:
 	return maxi(0, config.contact_damage + contact_damage_bonus)
+
+
+func _roll_xp_drop_amount() -> int:
+	return _roll_weighted_drop_amount(config.xp_drop_values, config.xp_drop_weights, 1, 5)
+
+
+func _roll_hp_drop_amount() -> int:
+	return _roll_weighted_drop_amount(config.hp_drop_values, config.hp_drop_weights, 1, 999)
+
+
+func _roll_weighted_drop_amount(values: Array[int], weights: Array[int], min_value: int, max_value: int) -> int:
+	var value_count := mini(values.size(), weights.size())
+	if value_count <= 0:
+		return 0
+
+	var total_weight := 0
+	for index in range(value_count):
+		total_weight += maxi(0, weights[index])
+
+	if total_weight <= 0:
+		return 0
+
+	var roll := Rng.range_i(1, total_weight)
+	var accumulated_weight := 0
+
+	for index in range(value_count):
+		accumulated_weight += maxi(0, weights[index])
+		if roll <= accumulated_weight:
+			return clampi(values[index], min_value, max_value)
+
+	return clampi(values[0], min_value, max_value)

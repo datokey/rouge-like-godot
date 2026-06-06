@@ -4,9 +4,12 @@
 
 [resource]
 script = ExtResource("1_enemy_config")
-max_hp = 3
+max_hp = 30
 move_speed = 90.0
 contact_damage = 1
 contact_cooldown = 0.7
-xp_drop = 1
-health_drop_chance = 0.35
+xp_drop_values = Array[int]([1, 2, 3, 4, 5])
+xp_drop_weights = Array[int]([60, 23, 12, 4, 1])
+hp_drop_values = Array[int]([5, 10, 15, 20, 25])
+hp_drop_weights = Array[int]([60, 23, 12, 4, 1])
+health_drop_chance = 0.12

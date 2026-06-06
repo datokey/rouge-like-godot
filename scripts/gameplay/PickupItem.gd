@@ -4,6 +4,7 @@ extends Node2D
 
 @onready var pickup_area: Area2D = $Area2D
 @onready var visual: Polygon2D = $Visual
+@onready var value_label: Label = $ValueLabel
 
 var is_collected := false
 
@@ -12,6 +13,12 @@ func _ready() -> void:
 	_apply_dummy_visual()
 	pickup_area.body_entered.connect(_on_body_entered)
 	pickup_area.area_entered.connect(_on_area_entered)
+
+
+func set_pickup_config(new_config: PickupConfig) -> void:
+	config = new_config
+	if is_node_ready():
+		_apply_dummy_visual()
 
 
 func _on_body_entered(body: Node) -> void:
@@ -45,8 +52,15 @@ func _apply_to_player(player: Node) -> void:
 
 
 func _apply_dummy_visual() -> void:
+	value_label.hide()
+	value_label.text = ""
+
 	match config.kind:
 		"hp":
 			visual.color = Color(0.2, 1.0, 0.35, 1.0)
+			value_label.show()
+			value_label.text = "HP: %d" % config.amount
 		"xp":
 			visual.color = Color(0.2, 0.62, 1.0, 1.0)
+			value_label.show()
+			value_label.text = "XP: %d" % config.amount

@@ -1,7 +1,8 @@
 extends Node2D
 
 @export var config: ProjectileConfig
-@export var damage := 1
+# Damage runtime diisi oleh PlayerController dari WeaponConfig saat projectile ditembakkan.
+@export var damage := 0
 
 @onready var hitbox: Area2D = $Hitbox
 
