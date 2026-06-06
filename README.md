@@ -7,7 +7,7 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
 - Player bergerak 8 arah memakai WASD.
 - Camera mengikuti player di arena test.
 - Enemy spawn otomatis di sekitar pinggir area kamera.
-- Enemy mengejar player dan memberi damage saat bersentuhan.
+- Enemy mengejar player, memakai detour waypoint sederhana saat garis ke player tertutup obstacle, dan memberi damage saat bersentuhan.
 - Player menembak otomatis ke enemy terdekat seperti Vampire Survivors.
 - Projectile mengurangi HP enemy.
 - Enemy memberi hit feedback saat terkena projectile: knockback kecil, hit flash, impact VFX, dan wadah sound hit.
@@ -60,7 +60,7 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - `resources/actors/player_default.tres`
   HP player, movement speed, dan pickup radius.
 - `resources/actors/enemy_dummy.tres`
-  HP enemy, movement speed, contact damage, contact cooldown, weighted XP drop, weighted HP drop, dan peluang drop HP.
+  HP enemy, movement speed, contact damage, contact cooldown, detour pathfinding sederhana, weighted XP drop, weighted HP drop, dan peluang drop HP.
 - `resources/weapons/basic_weapon.tres`
   Damage senjata, interval serangan, dan range auto-shoot.
 - `resources/abilities/default_ability_modifiers.tres`
@@ -112,6 +112,8 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Weighted HP pickup diatur di `EnemyConfig` lewat `hp_drop_values` dan `hp_drop_weights`; peluang drop HP memakai `health_drop_chance`.
 - Rarity/chance drop Magnet diatur lewat `EnemyConfig.magnet_drop_chance`.
 - Efek Magnet hanya menarik pickup `hp` dan `xp`; durasi, radius, pull speed, dan batch activation diatur lewat `MagnetConfig`.
+- Detour pathfinding enemy diatur lewat `EnemyConfig`: `detour_path_enabled`, `detour_obstacle_collision_mask`, `detour_refresh_interval`, `detour_waypoint_margin`, dan `detour_waypoint_reached_distance`.
+- Simple obstacle avoidance enemy tetap menjadi fallback dan diatur lewat `EnemyConfig`: `obstacle_avoidance_enabled`, `obstacle_avoidance_duration`, `obstacle_avoidance_weight`, `obstacle_stuck_time`, dan `obstacle_stuck_min_distance`.
 - Base damage senjata player ada di `WeaponConfig.damage`; upgrade damage persen bisa memakai `add_damage_percent_modifier()` atau `apply_ability_modifier()`.
 - Ability modifier player bisa memakai `apply_ability_modifier(modifier_type, base_value, rarity)`.
 - Default ability modifier: damage `+5%`, attack speed `+15%`, dan max HP `+5`.

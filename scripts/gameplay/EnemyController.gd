@@ -22,12 +22,22 @@ var knockback_velocity := Vector2.ZERO
 var hit_flash_remaining := 0.0
 var hit_stop_remaining := 0.0
 var base_visual_color := Color.WHITE
+var avoidance_direction := Vector2.ZERO
+var avoidance_remaining := 0.0
+var avoidance_side := 1.0
+var stuck_timer := 0.0
+var has_detour_waypoint := false
+var detour_waypoint := Vector2.ZERO
+var detour_refresh_timer := 0.0
 
 
 func _ready() -> void:
 	current_hp = config.max_hp
 	target = get_tree().get_first_node_in_group("player") as Node2D
 	base_visual_color = visual.color
+	avoidance_side = 1.0 if get_instance_id() % 2 == 0 else -1.0
+	if config.detour_refresh_interval > 0.0:
+		detour_refresh_timer = float(get_instance_id() % 100) / 100.0 * config.detour_refresh_interval
 
 
 func _physics_process(delta: float) -> void:
@@ -51,8 +61,12 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
-	velocity = global_position.direction_to(target.global_position) * config.move_speed
+	var chase_direction := global_position.direction_to(target.global_position)
+	var move_direction := _get_move_direction(chase_direction, delta)
+	var position_before_move := global_position
+	velocity = move_direction * config.move_speed
 	move_and_slide()
+	_update_obstacle_avoidance(chase_direction, position_before_move.distance_to(global_position), delta)
 	_apply_controlled_knockback(delta)
 	_try_damage_player()
 
@@ -132,6 +146,230 @@ func set_contact_damage_bonus(value: int) -> void:
 
 func get_contact_damage() -> int:
 	return maxi(0, config.contact_damage + contact_damage_bonus)
+
+
+func _get_move_direction(chase_direction: Vector2, delta: float) -> Vector2:
+	var base_direction := _get_detour_direction(chase_direction, delta)
+
+	if not config.obstacle_avoidance_enabled:
+		return base_direction
+
+	if avoidance_remaining <= 0.0 or avoidance_direction == Vector2.ZERO:
+		return base_direction
+
+	avoidance_remaining = maxf(avoidance_remaining - delta, 0.0)
+	var mixed_direction := base_direction + avoidance_direction * config.obstacle_avoidance_weight
+	if mixed_direction == Vector2.ZERO:
+		return base_direction
+
+	return mixed_direction.normalized()
+
+
+func _get_detour_direction(chase_direction: Vector2, delta: float) -> Vector2:
+	if not config.detour_path_enabled:
+		return chase_direction
+
+	_update_detour_waypoint(delta)
+
+	if not has_detour_waypoint:
+		return chase_direction
+
+	if global_position.distance_to(detour_waypoint) <= config.detour_waypoint_reached_distance:
+		has_detour_waypoint = false
+		return chase_direction
+
+	return global_position.direction_to(detour_waypoint)
+
+
+func _update_detour_waypoint(delta: float) -> void:
+	if target == null:
+		has_detour_waypoint = false
+		return
+
+	detour_refresh_timer = maxf(detour_refresh_timer - delta, 0.0)
+	if detour_refresh_timer > 0.0 and has_detour_waypoint:
+		return
+
+	detour_refresh_timer = maxf(config.detour_refresh_interval, 0.01)
+	var obstacle_hit := _raycast_static_obstacle(global_position, target.global_position)
+	if obstacle_hit.is_empty():
+		has_detour_waypoint = false
+		return
+
+	var obstacle := obstacle_hit.get("collider") as StaticBody2D
+	if obstacle == null:
+		has_detour_waypoint = false
+		return
+
+	var waypoint := _pick_detour_waypoint(obstacle, target.global_position)
+	if waypoint == Vector2.INF:
+		has_detour_waypoint = false
+		return
+
+	detour_waypoint = waypoint
+	has_detour_waypoint = true
+
+
+func _pick_detour_waypoint(obstacle: StaticBody2D, target_position: Vector2) -> Vector2:
+	var obstacle_bounds := _get_static_body_bounds(obstacle)
+	if obstacle_bounds.size == Vector2.ZERO:
+		return Vector2.INF
+
+	obstacle_bounds = obstacle_bounds.grow(config.detour_waypoint_margin)
+	var candidates: Array[Vector2] = [
+		obstacle_bounds.position,
+		obstacle_bounds.position + Vector2(obstacle_bounds.size.x, 0.0),
+		obstacle_bounds.position + obstacle_bounds.size,
+		obstacle_bounds.position + Vector2(0.0, obstacle_bounds.size.y),
+	]
+
+	var best_waypoint := Vector2.INF
+	var best_score := INF
+	for candidate in candidates:
+		if not _raycast_static_obstacle(global_position, candidate).is_empty():
+			continue
+
+		var target_visibility_penalty := 0.0
+		if not _raycast_static_obstacle(candidate, target_position).is_empty():
+			target_visibility_penalty = 300.0
+
+		var score := global_position.distance_to(candidate) + candidate.distance_to(target_position)
+		score += target_visibility_penalty
+		if score < best_score:
+			best_score = score
+			best_waypoint = candidate
+
+	return best_waypoint
+
+
+func _raycast_static_obstacle(from_position: Vector2, to_position: Vector2) -> Dictionary:
+	var space_state := get_world_2d().direct_space_state
+	var excluded_rids: Array[RID] = [get_rid()]
+	var target_collision := target as CollisionObject2D
+	if target_collision != null:
+		excluded_rids.append(target_collision.get_rid())
+
+	for _index in range(8):
+		var query := PhysicsRayQueryParameters2D.create(from_position, to_position)
+		query.collision_mask = config.detour_obstacle_collision_mask
+		query.collide_with_areas = false
+		query.exclude = excluded_rids
+		var hit := space_state.intersect_ray(query)
+		if hit.is_empty():
+			return {}
+
+		var collider: Object = hit.get("collider")
+		if collider is StaticBody2D:
+			return hit
+
+		if collider is CollisionObject2D:
+			excluded_rids.append(collider.get_rid())
+			continue
+
+		return {}
+
+	return {}
+
+
+func _get_static_body_bounds(body: StaticBody2D) -> Rect2:
+	var has_bounds := false
+	var bounds := Rect2()
+
+	for child in body.get_children():
+		var collision_shape := child as CollisionShape2D
+		if collision_shape == null or collision_shape.disabled or collision_shape.shape == null:
+			continue
+
+		var shape_bounds := _get_collision_shape_bounds(collision_shape)
+		if not has_bounds:
+			bounds = shape_bounds
+			has_bounds = true
+		else:
+			bounds = bounds.merge(shape_bounds)
+
+	if has_bounds:
+		return bounds
+
+	return Rect2(body.global_position - Vector2(32.0, 32.0), Vector2(64.0, 64.0))
+
+
+func _get_collision_shape_bounds(collision_shape: CollisionShape2D) -> Rect2:
+	if collision_shape.shape is RectangleShape2D:
+		var rectangle := collision_shape.shape as RectangleShape2D
+		var half_size := rectangle.size * 0.5
+		var local_points: Array[Vector2] = [
+			Vector2(-half_size.x, -half_size.y),
+			Vector2(half_size.x, -half_size.y),
+			Vector2(half_size.x, half_size.y),
+			Vector2(-half_size.x, half_size.y),
+		]
+		return _get_bounds_from_local_points(collision_shape, local_points)
+
+	return Rect2(collision_shape.global_position - Vector2(32.0, 32.0), Vector2(64.0, 64.0))
+
+
+func _get_bounds_from_local_points(node: Node2D, local_points: Array[Vector2]) -> Rect2:
+	var first_point := node.global_transform * local_points[0]
+	var min_position := first_point
+	var max_position := first_point
+
+	for index in range(1, local_points.size()):
+		var point := node.global_transform * local_points[index]
+		min_position.x = minf(min_position.x, point.x)
+		min_position.y = minf(min_position.y, point.y)
+		max_position.x = maxf(max_position.x, point.x)
+		max_position.y = maxf(max_position.y, point.y)
+
+	return Rect2(min_position, max_position - min_position)
+
+
+func _update_obstacle_avoidance(chase_direction: Vector2, moved_distance: float, delta: float) -> void:
+	if not config.obstacle_avoidance_enabled or chase_direction == Vector2.ZERO:
+		return
+
+	var obstacle_normal := _get_obstacle_collision_normal()
+	if obstacle_normal != Vector2.ZERO:
+		stuck_timer = 0.0
+		_start_obstacle_avoidance(chase_direction, obstacle_normal)
+		return
+
+	if moved_distance <= config.obstacle_stuck_min_distance:
+		stuck_timer += delta
+		if stuck_timer >= config.obstacle_stuck_time:
+			stuck_timer = 0.0
+			avoidance_side *= -1.0
+			_start_obstacle_avoidance(chase_direction, Vector2.ZERO)
+	else:
+		stuck_timer = maxf(stuck_timer - delta * 2.0, 0.0)
+
+
+func _get_obstacle_collision_normal() -> Vector2:
+	for index in range(get_slide_collision_count()):
+		var collision := get_slide_collision(index)
+		var collider: Object = collision.get_collider()
+		if collider is StaticBody2D:
+			return collision.get_normal()
+
+	return Vector2.ZERO
+
+
+func _start_obstacle_avoidance(chase_direction: Vector2, obstacle_normal: Vector2) -> void:
+	var tangent := Vector2.ZERO
+	if obstacle_normal != Vector2.ZERO:
+		tangent = Vector2(-obstacle_normal.y, obstacle_normal.x)
+		var opposite_tangent := -tangent
+		if opposite_tangent.dot(chase_direction) > tangent.dot(chase_direction):
+			tangent = opposite_tangent
+		elif absf(tangent.dot(chase_direction)) < 0.05:
+			tangent *= avoidance_side
+	else:
+		tangent = Vector2(-chase_direction.y, chase_direction.x) * avoidance_side
+
+	if tangent == Vector2.ZERO:
+		return
+
+	avoidance_direction = tangent.normalized()
+	avoidance_remaining = config.obstacle_avoidance_duration
 
 
 func _apply_hit_feedback(hit_direction: Vector2, hit_position: Vector2) -> void:
