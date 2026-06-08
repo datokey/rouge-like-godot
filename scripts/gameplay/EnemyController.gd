@@ -105,11 +105,13 @@ func _die() -> void:
 	if drop_point != null:
 		drop_position = drop_point.global_position
 
-	var xp_amount := _roll_xp_drop_amount()
-	if xp_amount > 0 and xp_pickup_config != null:
-		var xp_config: PickupConfig = xp_pickup_config.duplicate() as PickupConfig
-		xp_config.amount = xp_amount
-		call_deferred("_drop_pickup", drop_position, xp_config)
+	var xp_drop_count := _roll_xp_drop_count()
+	for index in range(xp_drop_count):
+		var xp_amount := _roll_xp_drop_amount()
+		if xp_amount > 0 and xp_pickup_config != null:
+			var xp_config: PickupConfig = xp_pickup_config.duplicate() as PickupConfig
+			xp_config.amount = xp_amount
+			call_deferred("_drop_pickup", _get_xp_drop_position(drop_position, index, xp_drop_count), xp_config)
 
 	if health_pickup_config != null and Rng.chance(config.health_drop_chance):
 		var hp_amount := _roll_hp_drop_amount()
@@ -482,6 +484,20 @@ func _get_hit_scene(property_name: String) -> PackedScene:
 
 func _roll_xp_drop_amount() -> int:
 	return _roll_weighted_drop_amount(config.xp_drop_values, config.xp_drop_weights, 1, 5)
+
+
+func _roll_xp_drop_count() -> int:
+	var min_rolls := maxi(0, config.xp_drop_rolls_min)
+	var max_rolls := maxi(min_rolls, config.xp_drop_rolls_max)
+	return Rng.range_i(min_rolls, max_rolls)
+
+
+func _get_xp_drop_position(drop_position: Vector2, drop_index: int, drop_count: int) -> Vector2:
+	if drop_count <= 1:
+		return drop_position
+
+	var angle := TAU * float(drop_index) / float(drop_count)
+	return drop_position + Vector2.RIGHT.rotated(angle) * 14.0
 
 
 func _roll_hp_drop_amount() -> int:

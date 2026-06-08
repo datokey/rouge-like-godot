@@ -1,6 +1,8 @@
 extends Node2D
 
 @export var enemy_scene: PackedScene
+@export var enemy_scenes: Array[PackedScene] = []
+@export var enemy_scene_weights: Array[int] = []
 # Semua angka spawn dan scaling disimpan di resource SpawnerConfig.
 @export var config: SpawnerConfig
 
@@ -28,7 +30,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if enemy_scene == null or GameState.mode != GameState.GameMode.RUNNING:
+	if not _has_enemy_scene() or GameState.mode != GameState.GameMode.RUNNING:
 		return
 
 	spawn_timer -= delta
@@ -56,7 +58,11 @@ func _spawn_wave() -> void:
 		return
 
 	for index in range(spawn_amount):
-		var enemy: Node2D = enemy_scene.instantiate() as Node2D
+		var selected_enemy_scene := _pick_enemy_scene()
+		if selected_enemy_scene == null:
+			continue
+
+		var enemy: Node2D = selected_enemy_scene.instantiate() as Node2D
 		if enemy == null:
 			continue
 
@@ -134,6 +140,52 @@ func _get_spawn_count_for_elapsed_time() -> int:
 func _get_available_enemy_slots() -> int:
 	var alive_count := get_tree().get_nodes_in_group("enemy").size()
 	return maxi(0, config.maximum_alive_enemies - alive_count)
+
+
+func _has_enemy_scene() -> bool:
+	if enemy_scene != null:
+		return true
+
+	for scene in enemy_scenes:
+		if scene != null:
+			return true
+
+	return false
+
+
+func _pick_enemy_scene() -> PackedScene:
+	if enemy_scenes.is_empty():
+		return enemy_scene
+
+	var scene_count := enemy_scenes.size()
+	var total_weight := 0
+	for index in range(scene_count):
+		if enemy_scenes[index] == null:
+			continue
+		total_weight += _get_enemy_scene_weight(index)
+
+	if total_weight <= 0:
+		return enemy_scene
+
+	var roll := Rng.range_i(1, total_weight)
+	var accumulated_weight := 0
+	for index in range(scene_count):
+		var scene := enemy_scenes[index]
+		if scene == null:
+			continue
+
+		accumulated_weight += _get_enemy_scene_weight(index)
+		if roll <= accumulated_weight:
+			return scene
+
+	return enemy_scene
+
+
+func _get_enemy_scene_weight(index: int) -> int:
+	if index < enemy_scene_weights.size():
+		return maxi(0, enemy_scene_weights[index])
+
+	return 1
 
 
 func _random_camera_x() -> int:

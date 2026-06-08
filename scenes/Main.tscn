@@ -1,6 +1,6 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3 uid="uid://dmv6c83rk42yo"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/Main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://blqivvhwg8if6" path="res://scripts/gameplay/Main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/world/TestArena.tscn" id="1_test_arena"]
 [ext_resource type="PackedScene" path="res://scenes/entities/Player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/world/EnemySpawner.tscn" id="3_enemy_spawner"]
@@ -9,23 +9,27 @@
 [ext_resource type="PackedScene" path="res://ui/screens/AbilitySelectionScreen.tscn" id="6_ability_selection_screen"]
 [ext_resource type="PackedScene" path="res://ui/screens/WinScreen.tscn" id="7_win_screen"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=1130339364]
 script = ExtResource("1_main")
 
-[node name="World" type="Node2D" parent="."]
+[node name="World" type="Node2D" parent="." unique_id=706621114]
 
-[node name="TestArena" parent="World" instance=ExtResource("1_test_arena")]
+[node name="TestArena" parent="World" unique_id=984640003 instance=ExtResource("1_test_arena")]
 
-[node name="Player" parent="World" instance=ExtResource("2_player")]
+[node name="Player" parent="World" unique_id=426680647 instance=ExtResource("2_player")]
 
-[node name="EnemySpawner" parent="World" instance=ExtResource("3_enemy_spawner")]
+[node name="EnemySpawner" parent="World" unique_id=1259997457 instance=ExtResource("3_enemy_spawner")]
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=1206201052]
 
-[node name="PlayerHud" parent="UI" instance=ExtResource("4_player_hud")]
+[node name="PlayerHud" parent="UI" unique_id=1867810275 instance=ExtResource("4_player_hud")]
+layout_mode = 3
 
-[node name="AbilitySelectionScreen" parent="UI" instance=ExtResource("6_ability_selection_screen")]
+[node name="AbilitySelectionScreen" parent="UI" unique_id=713302460 instance=ExtResource("6_ability_selection_screen")]
+layout_mode = 3
 
-[node name="WinScreen" parent="UI" instance=ExtResource("7_win_screen")]
+[node name="WinScreen" parent="UI" unique_id=807390525 instance=ExtResource("7_win_screen")]
+layout_mode = 3
 
-[node name="GameOverScreen" parent="UI" instance=ExtResource("5_game_over_screen")]
+[node name="GameOverScreen" parent="UI" unique_id=855442047 instance=ExtResource("5_game_over_screen")]
+layout_mode = 3

@@ -16,6 +16,8 @@ class_name EnemyConfig
 @export var obstacle_avoidance_weight := 0.9
 @export var obstacle_stuck_time := 0.18
 @export var obstacle_stuck_min_distance := 0.2
+@export var xp_drop_rolls_min := 1
+@export var xp_drop_rolls_max := 1
 @export var xp_drop_values: Array[int] = [1, 2, 3, 4, 5]
 @export var xp_drop_weights: Array[int] = [60, 23, 12, 4, 1]
 @export var hp_drop_values: Array[int] = [5, 10, 15, 20, 25]
