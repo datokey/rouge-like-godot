@@ -1,0 +1,37 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/EnemyController.gd" id="1_enemy_controller"]
+[ext_resource type="Resource" path="res://resources/actors/enemy_runner.tres" id="2_enemy_config"]
+[ext_resource type="PackedScene" path="res://scenes/entities/PickupItem.tscn" id="3_pickup_item"]
+[ext_resource type="Resource" path="res://resources/items/runner_health_pickup.tres" id="4_health_pickup_config"]
+[ext_resource type="Resource" path="res://resources/items/xp_pickup.tres" id="5_xp_pickup_config"]
+[ext_resource type="Resource" path="res://resources/items/magnet_pickup.tres" id="6_magnet_pickup_config"]
+[ext_resource type="Resource" path="res://resources/feedback/default_hit_feedback.tres" id="7_hit_feedback_config"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_runner_body"]
+size = Vector2(34, 24)
+
+[node name="EnemyRunner" type="CharacterBody2D" groups=["enemy"]]
+script = ExtResource("1_enemy_controller")
+config = ExtResource("2_enemy_config")
+pickup_item_scene = ExtResource("3_pickup_item")
+health_pickup_config = ExtResource("4_health_pickup_config")
+xp_pickup_config = ExtResource("5_xp_pickup_config")
+magnet_pickup_config = ExtResource("6_magnet_pickup_config")
+hit_feedback_config = ExtResource("7_hit_feedback_config")
+
+[node name="Visual" type="Polygon2D" parent="."]
+color = Color(1, 0.68, 0.15, 1)
+polygon = PackedVector2Array(-18, 0, -8, -14, 18, 0, -8, 14)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_runner_body")
+
+[node name="Hurtbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("RectangleShape2D_runner_body")
+
+[node name="DropPoint" type="Node2D" parent="."]
+
+[node name="HitSound" type="AudioStreamPlayer2D" parent="."]

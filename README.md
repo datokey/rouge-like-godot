@@ -7,7 +7,7 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
 - Player bergerak 8 arah memakai WASD.
 - Camera mengikuti player di arena test.
 - Enemy spawn otomatis di sekitar pinggir area kamera.
-- Enemy punya variasi normal dan Tank; Tank lebih besar, lebih lambat, damage lebih tinggi, dan reward drop lebih besar.
+- Enemy punya variasi normal, Runner, dan Tank; Runner paling cepat, Tank paling tebal/lambat, dan reward drop tiap tipe bisa berbeda.
 - Enemy mengejar player, memakai detour waypoint sederhana saat garis ke player tertutup obstacle, dan memberi damage saat bersentuhan.
 - Player menembak otomatis ke enemy terdekat seperti Vampire Survivors.
 - Projectile mengurangi HP enemy.
@@ -62,6 +62,8 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
   HP player, movement speed, dan pickup radius.
 - `resources/actors/enemy_dummy.tres`
   HP enemy normal, movement speed, contact damage, contact cooldown, detour pathfinding sederhana, jumlah roll XP, weighted XP drop, weighted HP drop, dan peluang drop HP.
+- `resources/actors/enemy_runner.tres`
+  Config Runner: HP menengah, movement speed paling tinggi, contact damage configurable, jumlah roll XP 1-2, weighted XP/HP drop khusus, dan peluang drop HP di atas enemy normal.
 - `resources/actors/enemy_tank.tres`
   Config Tank: HP, movement speed lambat, contact damage besar, jumlah roll XP 2-3, weighted XP/HP drop khusus, dan peluang drop HP lebih tinggi.
 - `resources/weapons/basic_weapon.tres`
@@ -80,6 +82,8 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
   Target survival timer dan `next_scene_path` untuk persiapan pindah scene setelah menang.
 - `resources/items/health_pickup.tres`
   Pickup HP default/fallback dengan jenis `hp`; jumlah heal drop enemy diisi dari weighted HP drop `EnemyConfig`.
+- `resources/items/runner_health_pickup.tres`
+  Pickup HP dummy khusus Runner; jumlah heal final tetap diisi dari weighted HP drop `EnemyConfig`.
 - `resources/items/tank_health_pickup.tres`
   Pickup HP dummy khusus Tank; jumlah heal final tetap diisi dari weighted HP drop `EnemyConfig`.
 - `resources/items/xp_pickup.tres`
@@ -115,7 +119,7 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 
 - Untuk balancing, utamakan edit file `.tres` di `resources/`, bukan script.
 - Weighted XP gem diatur di `EnemyConfig` lewat `xp_drop_values` dan `xp_drop_weights`.
-- Jumlah XP gem yang keluar diatur lewat `EnemyConfig.xp_drop_rolls_min` dan `EnemyConfig.xp_drop_rolls_max`; Tank default memakai 2-3 roll.
+- Jumlah XP gem yang keluar diatur lewat `EnemyConfig.xp_drop_rolls_min` dan `EnemyConfig.xp_drop_rolls_max`; Runner default memakai 1-2 roll dan Tank default memakai 2-3 roll.
 - Weighted HP pickup diatur di `EnemyConfig` lewat `hp_drop_values` dan `hp_drop_weights`; peluang drop HP memakai `health_drop_chance`.
 - Rarity/chance drop Magnet diatur lewat `EnemyConfig.magnet_drop_chance`.
 - Efek Magnet hanya menarik pickup `hp` dan `xp`; durasi, radius, pull speed, dan batch activation diatur lewat `MagnetConfig`.
