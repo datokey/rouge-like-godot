@@ -5,7 +5,13 @@
 [resource]
 script = ExtResource("1_ability_definition")
 id = "move_speed"
-display_name = "Move Speed"
+name = "Light Feet"
+category = "Mobility"
+effect_type = "move_speed_percent"
+value = 10.0
+rarity = "Common"
+stackable = true
+display_name = "Light Feet"
 description = "Menambah movement speed player."
 modifier_type = 4
 base_value = 0.1

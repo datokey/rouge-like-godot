@@ -5,7 +5,13 @@
 [resource]
 script = ExtResource("1_ability_definition")
 id = "max_hp"
-display_name = "Max HP"
+name = "Thick Skin"
+category = "Defense"
+effect_type = "max_hp_flat"
+value = 5.0
+rarity = "Common"
+stackable = true
+display_name = "Thick Skin"
 description = "Menambah batas HP player."
 modifier_type = 2
 base_value = 5.0

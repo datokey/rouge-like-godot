@@ -5,7 +5,13 @@
 [resource]
 script = ExtResource("1_ability_definition")
 id = "projectile_count"
-display_name = "Projectile Count"
+name = "Extra Shot"
+category = "Offense"
+effect_type = "projectile_count_flat"
+value = 1.0
+rarity = "Rare"
+stackable = true
+display_name = "Extra Shot"
 description = "Menambah jumlah projectile yang ditembakkan player."
 modifier_type = 3
 base_value = 1.0

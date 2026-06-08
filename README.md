@@ -71,7 +71,7 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - `resources/abilities/default_ability_modifiers.tres`
   Default nilai modifier ability dan multiplier rarity.
 - `resources/abilities/default_ability_pool.tres`
-  Daftar ability yang dapat muncul saat player naik level, termasuk peluang rarity.
+  Pool data upgrade level up. Prototype saat ini berisi minimal 10 `AbilityDefinition`.
 - `resources/projectiles/player_projectile.tres`
   Kecepatan dan lifetime projectile.
 - `resources/feedback/default_hit_feedback.tres`
@@ -108,7 +108,7 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 9. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
 10. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
 11. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
-12. `AbilitySelectionScreen` pause game, menampilkan 3 pilihan ability, lalu mengirim pilihan lewat event `ability_selected`.
+12. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
 13. Player menerapkan ability terpilih, lalu game berjalan kembali.
 14. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
 15. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
@@ -126,6 +126,9 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Detour pathfinding enemy diatur lewat `EnemyConfig`: `detour_path_enabled`, `detour_obstacle_collision_mask`, `detour_refresh_interval`, `detour_waypoint_margin`, dan `detour_waypoint_reached_distance`.
 - Simple obstacle avoidance enemy tetap menjadi fallback dan diatur lewat `EnemyConfig`: `obstacle_avoidance_enabled`, `obstacle_avoidance_duration`, `obstacle_avoidance_weight`, `obstacle_stuck_time`, dan `obstacle_stuck_min_distance`.
 - Base damage senjata player ada di `WeaponConfig.damage`; upgrade damage persen bisa memakai `add_damage_percent_modifier()` atau `apply_ability_modifier()`.
+- Upgrade level up berbasis data `AbilityDefinition`: `id`, `name`, `category`, `effect_type`, `value`, `rarity`, dan `stackable`.
+- Menambah upgrade baru cukup membuat resource `AbilityDefinition` dan memasukkannya ke `default_ability_pool.tres`; UI level up dan logic level up tidak perlu diubah.
+- `AbilityPoolConfig.roll_offers()` memilih upgrade dari pool, sedangkan `AbilitySelectionScreen` hanya merender data upgrade yang diterima.
 - Ability modifier player bisa memakai `apply_ability_modifier(modifier_type, base_value, rarity)`.
 - Default ability modifier: damage `+5%`, attack speed `+15%`, dan max HP `+5`.
 - Modifier tambahan tersedia untuk projectile count `+1` flat dan movement speed `+10%`.

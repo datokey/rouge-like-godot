@@ -4,14 +4,14 @@
 
 [resource]
 script = ExtResource("1_ability_definition")
-id = "bullet_damage"
-name = "Bullet Damage"
-category = "Offense"
-effect_type = "damage_percent"
-value = 20.0
-rarity = "Common"
+id = "hardened_core"
+name = "Hardened Core"
+category = "Defense"
+effect_type = "max_hp_flat"
+value = 10.0
+rarity = "Uncommon"
 stackable = true
-display_name = "Bullet Damage"
-description = "Menambah damage projectile player."
-modifier_type = 0
-base_value = 0.2
+display_name = "Hardened Core"
+description = "Menambah max HP lebih besar dari upgrade basic."
+modifier_type = 2
+base_value = 10.0

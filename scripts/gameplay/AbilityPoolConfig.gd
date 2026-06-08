@@ -3,42 +3,32 @@ class_name AbilityPoolConfig
 
 @export var offer_count := 3
 @export var abilities: Array[Resource] = []
-@export var rarity_values: Array[int] = [
-	AbilityModifierConfig.Rarity.COMMON,
-	AbilityModifierConfig.Rarity.UNCOMMON,
-	AbilityModifierConfig.Rarity.RARE,
-	AbilityModifierConfig.Rarity.EPIC,
-	AbilityModifierConfig.Rarity.LEGENDARY,
-]
-@export var rarity_weights: Array[int] = [55, 25, 13, 6, 1]
 
 
-func get_valid_abilities() -> Array[AbilityDefinition]:
+func get_valid_abilities(excluded_ids: Array[String] = []) -> Array[AbilityDefinition]:
 	var valid_abilities: Array[AbilityDefinition] = []
 	for ability in abilities:
-		if ability is AbilityDefinition:
-			valid_abilities.append(ability as AbilityDefinition)
+		if not ability is AbilityDefinition:
+			continue
+
+		var ability_definition := ability as AbilityDefinition
+		if not ability_definition.stackable and excluded_ids.has(ability_definition.id):
+			continue
+
+		valid_abilities.append(ability_definition)
 
 	return valid_abilities
 
 
-func roll_rarity() -> int:
-	var value_count := mini(rarity_values.size(), rarity_weights.size())
-	if value_count <= 0:
-		return AbilityModifierConfig.Rarity.COMMON
+func roll_offers(max_offer_count: int, excluded_ids: Array[String] = []) -> Array[AbilityDefinition]:
+	var offers: Array[AbilityDefinition] = []
+	var available_abilities := get_valid_abilities(excluded_ids)
+	var rolled_offer_count := mini(offer_count, max_offer_count)
+	rolled_offer_count = mini(rolled_offer_count, available_abilities.size())
 
-	var total_weight := 0
-	for index in range(value_count):
-		total_weight += maxi(0, rarity_weights[index])
+	for _index in range(rolled_offer_count):
+		var ability_index := Rng.range_i(0, available_abilities.size() - 1)
+		offers.append(available_abilities[ability_index])
+		available_abilities.remove_at(ability_index)
 
-	if total_weight <= 0:
-		return AbilityModifierConfig.Rarity.COMMON
-
-	var roll := Rng.range_i(1, total_weight)
-	var accumulated_weight := 0
-	for index in range(value_count):
-		accumulated_weight += maxi(0, rarity_weights[index])
-		if roll <= accumulated_weight:
-			return rarity_values[index]
-
-	return AbilityModifierConfig.Rarity.COMMON
+	return offers

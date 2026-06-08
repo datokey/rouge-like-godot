@@ -4,14 +4,14 @@
 
 [resource]
 script = ExtResource("1_ability_definition")
-id = "bullet_damage"
-name = "Bullet Damage"
-category = "Offense"
+id = "sharp_bullet"
+name = "Sharp Bullet"
+category = "Safe"
 effect_type = "damage_percent"
-value = 20.0
+value = 10.0
 rarity = "Common"
 stackable = true
-display_name = "Bullet Damage"
-description = "Menambah damage projectile player."
+display_name = "Sharp Bullet"
+description = "Upgrade damage kecil yang aman untuk sering muncul."
 modifier_type = 0
-base_value = 0.2
+base_value = 0.1

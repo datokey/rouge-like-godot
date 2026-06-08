@@ -14,6 +14,7 @@ var pending_level_ups := 0
 var is_selecting := false
 var current_offers: Array[Dictionary] = []
 var current_level := 1
+var taken_non_stackable_ids: Array[String] = []
 
 
 func _ready() -> void:
@@ -56,17 +57,10 @@ func _roll_offers() -> Array[Dictionary]:
 	if ability_pool_config == null:
 		return offers
 
-	var available_abilities := ability_pool_config.get_valid_abilities()
-	var offer_count := mini(ability_pool_config.offer_count, option_buttons.size())
-	offer_count = mini(offer_count, available_abilities.size())
-
-	for _index in range(offer_count):
-		var ability_index := Rng.range_i(0, available_abilities.size() - 1)
-		var ability := available_abilities[ability_index]
-		available_abilities.remove_at(ability_index)
-
-		var rarity := ability_pool_config.roll_rarity()
-		var final_value := ability.get_final_value(ability_modifier_config, rarity)
+	var rolled_abilities := ability_pool_config.roll_offers(option_buttons.size(), taken_non_stackable_ids)
+	for ability in rolled_abilities:
+		var rarity := ability.get_rarity_value()
+		var final_value := ability.get_final_value(ability_modifier_config)
 		offers.append({
 			"ability": ability,
 			"rarity": rarity,
@@ -104,6 +98,10 @@ func _on_option_pressed(index: int) -> void:
 		return
 
 	var offer := current_offers[index]
+	var ability := offer["ability"] as AbilityDefinition
+	if ability != null and not ability.stackable:
+		taken_non_stackable_ids.append(ability.id)
+
 	EventBus.ability_selected.emit(offer["ability"], int(offer["rarity"]))
 	_close_selection()
 
