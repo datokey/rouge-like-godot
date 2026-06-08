@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DifficultyManager" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/DifficultyManager.gd" id="1_difficulty_manager"]
+[ext_resource type="Resource" path="res://resources/difficulty/phase_early.tres" id="2_phase_early"]
+[ext_resource type="Resource" path="res://resources/difficulty/phase_mid.tres" id="3_phase_mid"]
+[ext_resource type="Resource" path="res://resources/difficulty/phase_late.tres" id="4_phase_late"]
+
+[resource]
+script = ExtResource("1_difficulty_manager")
+spawn_interval_min = 0.75
+spawn_interval_max = 3.0
+spawn_count_min = 1
+spawn_count_max = 5
+phases = Array[Resource]([ExtResource("2_phase_early"), ExtResource("3_phase_mid"), ExtResource("4_phase_late")])

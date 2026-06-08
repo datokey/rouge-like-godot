@@ -36,6 +36,8 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
   Data balancing berbentuk `.tres`, supaya angka gameplay tidak hardcoded di script.
 - `resources/abilities/`
   Data default modifier ability dan multiplier rarity.
+- `resources/difficulty/`
+  Data progression difficulty berbasis progress waktu run.
 - `resources/run/`
   Data target durasi survival dan placeholder scene berikutnya.
 - `ui/screens/`
@@ -77,7 +79,11 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - `resources/feedback/default_hit_feedback.tres`
   Tuning hit feedback enemy seperti knockback, flash, impact VFX, dan hit stop lokal.
 - `resources/spawners/enemy_spawner_default.tres`
-  Dynamic spawn interval, scaling jumlah enemy per spawn, batas alive enemy, scaling damage enemy, dan batas area spawn.
+  Batas area spawn dan jarak spawn dari kamera.
+- `resources/difficulty/default_difficulty.tres`
+  Difficulty Manager: min/max spawn interval, min/max spawn count, dan daftar phase.
+- `resources/difficulty/phase_early.tres`, `phase_mid.tres`, `phase_late.tres`
+  Phase difficulty berbasis `start_progress`; tiap phase mengatur HP/damage/speed multiplier, spawn interval/count, max alive enemy, serta daftar enemy yang bisa muncul.
 - `resources/run/default_run_config.tres`
   Target survival timer dan `next_scene_path` untuk persiapan pindah scene setelah menang.
 - `resources/items/health_pickup.tres`
@@ -100,20 +106,21 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 1. `Main` memanggil `RunManager.start_run()` saat scene dibuka/reload.
 2. `RunManager` reset run, mengisi seed, dan mulai menghitung survival timer.
 3. `PlayerController` membaca `PlayerConfig`, `WeaponConfig`, dan `XPConfig`, lalu mengisi HP awal ke `GameState`.
-4. `EnemySpawner` membaca `SpawnerConfig`, lalu spawn enemy secara berkala.
-5. `EnemySpawner` memilih scene enemy dari `enemy_scenes` dan `enemy_scene_weights`.
-6. `EnemyController` membaca `EnemyConfig`, lalu mengejar player.
-7. Player auto-shoot ke enemy terdekat dalam range.
-8. `Projectile` memanggil `take_damage()` pada enemy yang terkena.
-9. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
-10. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
-11. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
-12. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
-13. Player menerapkan ability terpilih, lalu game berjalan kembali.
-14. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
-15. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
-16. Jika HP player habis sebelum survival timer selesai, `RunManager` memicu lose state dan `GameOverScreen` muncul.
-17. Jika survival timer mencapai target, `RunManager` memicu win state dan `WinScreen` muncul.
+4. `EnemySpawner` membaca `SpawnerConfig` untuk area spawn dan `DifficultyManager` untuk scaling difficulty.
+5. `DifficultyManager` menghitung progress dari `GameState.run_elapsed_time / GameState.run_target_time`.
+6. `EnemySpawner` memilih enemy dari phase aktif, lalu memberi multiplier HP, damage, dan move speed ke enemy yang baru di-spawn.
+7. `EnemyController` membaca `EnemyConfig` sebagai base stat, lalu memakai multiplier runtime dari Difficulty Manager.
+8. Player auto-shoot ke enemy terdekat dalam range.
+9. `Projectile` memanggil `take_damage()` pada enemy yang terkena.
+10. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
+11. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
+12. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
+13. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
+14. Player menerapkan ability terpilih, lalu game berjalan kembali.
+15. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
+16. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
+17. Jika HP player habis sebelum survival timer selesai, `RunManager` memicu lose state dan `GameOverScreen` muncul.
+18. Jika survival timer mencapai target, `RunManager` memicu win state dan `WinScreen` muncul.
 
 ## Catatan maintenance
 
@@ -135,11 +142,14 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Rarity multiplier diatur di `AbilityModifierConfig`; contoh damage `20%` rarity Epic menghasilkan `20% * 1.5 = 30%`.
 - Ability baru bisa dibuat sebagai resource `AbilityDefinition`, lalu dimasukkan ke `default_ability_pool.tres`.
 - Attack speed player memakai `WeaponConfig.attack_interval`; upgrade attack speed bisa memanggil `add_attack_speed_modifier()` untuk menambah attack speed berbasis persen.
-- Base damage enemy ada di `EnemyConfig`; kenaikan damage seiring waktu disimpan sebagai bonus runtime dari `SpawnerConfig`.
+- Base damage enemy ada di `EnemyConfig`; scaling damage runtime sekarang berasal dari `DifficultyManager`.
 - Hit feedback enemy diatur lewat `HitFeedbackConfig`; knockback memakai controlled displacement yang di-clamp, bukan physics force bebas.
-- Dynamic spawn interval enemy diatur lewat `SpawnerConfig`: `initial_spawn_interval`, `spawn_interval_decrease_every`, `spawn_interval_decrease_amount`, dan `minimum_spawn_interval`.
-- Scaling jumlah enemy per spawn diatur lewat `SpawnerConfig`: `initial_spawn_count`, `spawn_count_increase_every`, `spawn_count_increase_amount`, dan `maximum_spawn_count`.
-- Batas enemy hidup bersamaan diatur lewat `SpawnerConfig.maximum_alive_enemies`; default prototype adalah `50`.
+- Difficulty progression mengikuti progress waktu run, bukan wave count.
+- `DifficultyManager` diatur lewat `resources/difficulty/default_difficulty.tres`.
+- Jumlah phase diatur dari panjang array `phases` pada `DifficultyManager`.
+- Batas perpindahan phase diatur lewat `DifficultyPhaseConfig.start_progress`.
+- HP/damage/move speed multiplier, spawn interval/count, max alive enemy, dan daftar enemy per phase diatur lewat resource phase difficulty.
+- Menambah tipe enemy baru ke progression cukup memasukkan scene enemy tersebut ke `enemy_scenes` dan weight-nya ke `enemy_scene_weights` pada phase yang diinginkan.
 - Survival win condition diatur lewat `RunConfig.survival_duration`; default prototype adalah `300` detik.
 - `RunConfig.next_scene_path` disiapkan untuk pindah scene setelah menang, tetapi prototype saat ini masih boleh kosong.
 - Untuk komunikasi antar sistem, pakai signal di `autoload/EventBus.gd`.

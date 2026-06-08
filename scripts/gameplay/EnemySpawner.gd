@@ -1,18 +1,15 @@
 extends Node2D
 
-@export var enemy_scene: PackedScene
-@export var enemy_scenes: Array[PackedScene] = []
-@export var enemy_scene_weights: Array[int] = []
-# Semua angka spawn dan scaling disimpan di resource SpawnerConfig.
+# Config spawn area dipisah dari config difficulty agar balancing lebih rapi.
 @export var config: SpawnerConfig
+@export var difficulty_manager: Resource
+
+const SPAWN_SIDE_MIN := 0
+const SPAWN_SIDE_MAX := 3
+const WAVE_SPAWN_OFFSET := 32.0
 
 var player: Node2D
 var spawn_timer := 0.0
-var spawn_interval_scaling_timer := 0.0
-var damage_scaling_timer := 0.0
-var current_spawn_interval := 0.0
-var current_spawn_count := 0
-var current_enemy_damage_bonus := 0
 
 
 func _ready() -> void:
@@ -21,44 +18,33 @@ func _ready() -> void:
 		set_physics_process(false)
 		return
 
+	if difficulty_manager == null:
+		push_error("EnemySpawner membutuhkan DifficultyManager di property difficulty_manager.")
+		set_physics_process(false)
+		return
+
 	player = get_tree().get_first_node_in_group("player") as Node2D
-	current_spawn_interval = maxf(config.initial_spawn_interval, config.minimum_spawn_interval)
-	current_spawn_count = config.initial_spawn_count
-	spawn_timer = current_spawn_interval
-	spawn_interval_scaling_timer = maxf(config.spawn_interval_decrease_every, 0.0)
-	damage_scaling_timer = config.enemy_damage_increase_every
+	spawn_timer = _get_difficulty_float("get_spawn_interval", _get_run_progress())
 
 
 func _physics_process(delta: float) -> void:
-	if not _has_enemy_scene() or GameState.mode != GameState.GameMode.RUNNING:
+	var progress := _get_run_progress()
+	if not _get_difficulty_bool("has_enemy_scene", progress) or GameState.mode != GameState.GameMode.RUNNING:
 		return
 
 	spawn_timer -= delta
-	damage_scaling_timer -= delta
-	if config.spawn_interval_decrease_every > 0.0:
-		spawn_interval_scaling_timer -= delta
-
 	if spawn_timer <= 0.0:
-		_spawn_wave()
-		spawn_timer = current_spawn_interval
-
-	while config.spawn_interval_decrease_every > 0.0 and spawn_interval_scaling_timer <= 0.0:
-		_scale_spawn_interval()
-		spawn_interval_scaling_timer += config.spawn_interval_decrease_every
-
-	if damage_scaling_timer <= 0.0:
-		_scale_enemy_damage()
-		damage_scaling_timer = config.enemy_damage_increase_every
+		_spawn_wave(progress)
+		spawn_timer = _get_difficulty_float("get_spawn_interval", progress)
 
 
-func _spawn_wave() -> void:
-	current_spawn_count = _get_spawn_count_for_elapsed_time()
-	var spawn_amount := mini(current_spawn_count, _get_available_enemy_slots())
+func _spawn_wave(progress: float) -> void:
+	var spawn_amount := mini(_get_difficulty_int("get_spawn_count", progress), _get_available_enemy_slots(progress))
 	if spawn_amount <= 0:
 		return
 
 	for index in range(spawn_amount):
-		var selected_enemy_scene := _pick_enemy_scene()
+		var selected_enemy_scene: PackedScene = difficulty_manager.call("pick_enemy_scene", progress)
 		if selected_enemy_scene == null:
 			continue
 
@@ -66,9 +52,15 @@ func _spawn_wave() -> void:
 		if enemy == null:
 			continue
 
+		if enemy.has_method("apply_difficulty_scaling"):
+			enemy.call(
+				"apply_difficulty_scaling",
+				_get_difficulty_float("get_hp_multiplier", progress),
+				_get_difficulty_float("get_damage_multiplier", progress),
+				_get_difficulty_float("get_move_speed_multiplier", progress)
+			)
+
 		get_parent().add_child(enemy)
-		if enemy.has_method("set_contact_damage_bonus"):
-			enemy.set_contact_damage_bonus(current_enemy_damage_bonus)
 		enemy.global_position = _get_spawn_position(index)
 
 
@@ -77,10 +69,10 @@ func _get_spawn_position(index: int) -> Vector2:
 	if player != null:
 		spawn_center = player.global_position
 
-	var side := Rng.range_i(0, 3)
+	var side := Rng.range_i(SPAWN_SIDE_MIN, SPAWN_SIDE_MAX)
 
 	# Offset kecil mencegah enemy dalam wave yang sama spawn di posisi persis sama.
-	var offset := float(index) * 32.0
+	var offset := float(index) * WAVE_SPAWN_OFFSET
 	var position := Vector2.ZERO
 
 	match side:
@@ -111,81 +103,48 @@ func _get_spawn_position(index: int) -> Vector2:
 	return position
 
 
-func _scale_spawn_interval() -> void:
-	# Interval spawn turun berdasarkan durasi run, sampai batas minimum.
-	current_spawn_interval = maxf(
-		current_spawn_interval - config.spawn_interval_decrease_amount,
-		config.minimum_spawn_interval
-	)
-	spawn_timer = minf(spawn_timer, current_spawn_interval)
-
-
-func _scale_enemy_damage() -> void:
-	current_enemy_damage_bonus = mini(
-		current_enemy_damage_bonus + config.enemy_damage_increase_amount,
-		config.enemy_damage_max_bonus
-	)
-
-
-func _get_spawn_count_for_elapsed_time() -> int:
-	var max_spawn_count := maxi(0, config.maximum_spawn_count)
-	var spawn_count := maxi(0, config.initial_spawn_count)
-	if config.spawn_count_increase_every > 0.0:
-		var increase_steps := floori(GameState.run_elapsed_time / config.spawn_count_increase_every)
-		spawn_count += increase_steps * maxi(0, config.spawn_count_increase_amount)
-
-	return clampi(spawn_count, 0, max_spawn_count)
-
-
-func _get_available_enemy_slots() -> int:
+func _get_available_enemy_slots(progress: float) -> int:
 	var alive_count := get_tree().get_nodes_in_group("enemy").size()
-	return maxi(0, config.maximum_alive_enemies - alive_count)
+	return maxi(0, _get_difficulty_int("get_maximum_alive_enemies", progress) - alive_count)
 
 
-func _has_enemy_scene() -> bool:
-	if enemy_scene != null:
-		return true
+func _get_run_progress() -> float:
+	if difficulty_manager == null:
+		return 0.0
 
-	for scene in enemy_scenes:
-		if scene != null:
-			return true
+	var value = difficulty_manager.call(
+		"get_progress",
+		GameState.run_elapsed_time,
+		GameState.run_target_time
+	)
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return float(value)
+
+	return 0.0
+
+
+func _get_difficulty_float(method_name: String, progress: float) -> float:
+	var value = difficulty_manager.call(method_name, progress)
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return float(value)
+
+	return 0.0
+
+
+func _get_difficulty_int(method_name: String, progress: float) -> int:
+	var value = difficulty_manager.call(method_name, progress)
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return roundi(float(value))
+
+	return 0
+
+
+func _get_difficulty_bool(method_name: String, progress: float) -> bool:
+	var value = difficulty_manager.call(method_name, progress)
+	if typeof(value) == TYPE_BOOL:
+		return value
 
 	return false
-
-
-func _pick_enemy_scene() -> PackedScene:
-	if enemy_scenes.is_empty():
-		return enemy_scene
-
-	var scene_count := enemy_scenes.size()
-	var total_weight := 0
-	for index in range(scene_count):
-		if enemy_scenes[index] == null:
-			continue
-		total_weight += _get_enemy_scene_weight(index)
-
-	if total_weight <= 0:
-		return enemy_scene
-
-	var roll := Rng.range_i(1, total_weight)
-	var accumulated_weight := 0
-	for index in range(scene_count):
-		var scene := enemy_scenes[index]
-		if scene == null:
-			continue
-
-		accumulated_weight += _get_enemy_scene_weight(index)
-		if roll <= accumulated_weight:
-			return scene
-
-	return enemy_scene
-
-
-func _get_enemy_scene_weight(index: int) -> int:
-	if index < enemy_scene_weights.size():
-		return maxi(0, enemy_scene_weights[index])
-
-	return 1
 
 
 func _random_camera_x() -> int:

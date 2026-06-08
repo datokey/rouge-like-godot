@@ -17,6 +17,9 @@ var contact_timer := 0.0
 var target: Node2D
 var is_dead := false
 var contact_damage_bonus := 0
+var hp_multiplier := 1.0
+var contact_damage_multiplier := 1.0
+var move_speed_multiplier := 1.0
 var knockback_remaining := 0.0
 var knockback_velocity := Vector2.ZERO
 var hit_flash_remaining := 0.0
@@ -32,7 +35,7 @@ var detour_refresh_timer := 0.0
 
 
 func _ready() -> void:
-	current_hp = config.max_hp
+	current_hp = get_max_hp()
 	target = get_tree().get_first_node_in_group("player") as Node2D
 	base_visual_color = visual.color
 	avoidance_side = 1.0 if get_instance_id() % 2 == 0 else -1.0
@@ -64,7 +67,7 @@ func _physics_process(delta: float) -> void:
 	var chase_direction := global_position.direction_to(target.global_position)
 	var move_direction := _get_move_direction(chase_direction, delta)
 	var position_before_move := global_position
-	velocity = move_direction * config.move_speed
+	velocity = move_direction * get_move_speed()
 	move_and_slide()
 	_update_obstacle_avoidance(chase_direction, position_before_move.distance_to(global_position), delta)
 	_apply_controlled_knockback(delta)
@@ -146,8 +149,27 @@ func set_contact_damage_bonus(value: int) -> void:
 	contact_damage_bonus = value
 
 
+func apply_difficulty_scaling(
+	new_hp_multiplier: float,
+	new_damage_multiplier: float,
+	new_move_speed_multiplier: float
+) -> void:
+	hp_multiplier = maxf(0.0, new_hp_multiplier)
+	contact_damage_multiplier = maxf(0.0, new_damage_multiplier)
+	move_speed_multiplier = maxf(0.0, new_move_speed_multiplier)
+
+
+func get_max_hp() -> int:
+	return maxi(1, roundi(float(config.max_hp) * hp_multiplier))
+
+
+func get_move_speed() -> float:
+	return maxf(0.0, config.move_speed * move_speed_multiplier)
+
+
 func get_contact_damage() -> int:
-	return maxi(0, config.contact_damage + contact_damage_bonus)
+	var base_damage := config.contact_damage + contact_damage_bonus
+	return maxi(0, roundi(float(base_damage) * contact_damage_multiplier))
 
 
 func _get_move_direction(chase_direction: Vector2, delta: float) -> Vector2:

@@ -4,18 +4,6 @@
 
 [resource]
 script = ExtResource("1_spawner_config")
-initial_spawn_interval = 3.0
-spawn_interval_decrease_every = 30.0
-spawn_interval_decrease_amount = 0.25
-minimum_spawn_interval = 0.75
-initial_spawn_count = 1
-spawn_count_increase_every = 60.0
-spawn_count_increase_amount = 1
-maximum_spawn_count = 5
-maximum_alive_enemies = 50
-enemy_damage_increase_every = 20.0
-enemy_damage_increase_amount = 1
-enemy_damage_max_bonus = 20
 playable_half_size = Vector2(600, 320)
 camera_half_size = Vector2(320, 180)
 spawn_margin = 80.0
