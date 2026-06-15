@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="AbilityModifierConfig" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/gameplay/AbilityModifierConfig.gd" id="1_ability_modifier_config"]
+[ext_resource type="Script" path="res://abilities/scripts/AbilityModifierConfig.gd" id="1_ability_modifier_config"]
 
 [resource]
 script = ExtResource("1_ability_modifier_config")

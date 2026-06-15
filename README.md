@@ -133,8 +133,11 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Detour pathfinding enemy diatur lewat `EnemyConfig`: `detour_path_enabled`, `detour_obstacle_collision_mask`, `detour_refresh_interval`, `detour_waypoint_margin`, dan `detour_waypoint_reached_distance`.
 - Simple obstacle avoidance enemy tetap menjadi fallback dan diatur lewat `EnemyConfig`: `obstacle_avoidance_enabled`, `obstacle_avoidance_duration`, `obstacle_avoidance_weight`, `obstacle_stuck_time`, dan `obstacle_stuck_min_distance`.
 - Base damage senjata player ada di `WeaponConfig.damage`; upgrade damage persen bisa memakai `add_damage_percent_modifier()` atau `apply_ability_modifier()`.
-- Upgrade level up berbasis data `AbilityDefinition`: `id`, `name`, `category`, `effect_type`, `value`, `rarity`, dan `stackable`.
-- Menambah upgrade baru cukup membuat resource `AbilityDefinition` dan memasukkannya ke `default_ability_pool.tres`; UI level up dan logic level up tidak perlu diubah.
+- Upgrade level up berbasis data `AbilityDefinition`: `id`, `display_name`, `description`, `category`, `rarity`, `trigger`, `icon`, `stackable`, `max_stack`, dan `effects`.
+- Setiap item di `AbilityDefinition.effects` berisi resource `AbilityEffect` yang menyimpan enum `target`, enum `effect_type`, `value`, dan enum `stack_mode`; satu ability bisa punya banyak effect.
+- `AbilityManager` menyimpan ability yang sudah dipilih player, menghitung stack/max stack, mengumpulkan `active_effects`, lalu menyediakan `get_flat_modifier()` dan `get_percent_modifier()`.
+- Weapon/player stat membaca modifier runtime dari `AbilityManager`, bukan langsung dari resource ability.
+- Menambah upgrade baru cukup membuat resource `AbilityDefinition`, mengisi satu atau lebih `AbilityEffect`, lalu memasukkannya ke `default_ability_pool.tres`; UI level up dan logic level up tidak perlu diubah.
 - `AbilityPoolConfig.roll_offers()` memilih upgrade dari pool, sedangkan `AbilitySelectionScreen` hanya merender data upgrade yang diterima.
 - Ability modifier player bisa memakai `apply_ability_modifier(modifier_type, base_value, rarity)`.
 - Default ability modifier: damage `+5%`, attack speed `+15%`, dan max HP `+5`.

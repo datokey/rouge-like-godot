@@ -5,7 +5,10 @@ class_name AbilityPoolConfig
 @export var abilities: Array[Resource] = []
 
 
-func get_valid_abilities(excluded_ids: Array[String] = []) -> Array[AbilityDefinition]:
+func get_valid_abilities(
+	excluded_ids: Array[String] = [],
+	taken_counts: Dictionary = {}
+) -> Array[AbilityDefinition]:
 	var valid_abilities: Array[AbilityDefinition] = []
 	for ability in abilities:
 		if not ability is AbilityDefinition:
@@ -14,15 +17,23 @@ func get_valid_abilities(excluded_ids: Array[String] = []) -> Array[AbilityDefin
 		var ability_definition := ability as AbilityDefinition
 		if not ability_definition.stackable and excluded_ids.has(ability_definition.id):
 			continue
+		if ability_definition.max_stack > 0:
+			var taken_count := int(taken_counts.get(ability_definition.id, 0))
+			if taken_count >= ability_definition.max_stack:
+				continue
 
 		valid_abilities.append(ability_definition)
 
 	return valid_abilities
 
 
-func roll_offers(max_offer_count: int, excluded_ids: Array[String] = []) -> Array[AbilityDefinition]:
+func roll_offers(
+	max_offer_count: int,
+	excluded_ids: Array[String] = [],
+	taken_counts: Dictionary = {}
+) -> Array[AbilityDefinition]:
 	var offers: Array[AbilityDefinition] = []
-	var available_abilities := get_valid_abilities(excluded_ids)
+	var available_abilities := get_valid_abilities(excluded_ids, taken_counts)
 	var rolled_offer_count := mini(offer_count, max_offer_count)
 	rolled_offer_count = mini(rolled_offer_count, available_abilities.size())
 

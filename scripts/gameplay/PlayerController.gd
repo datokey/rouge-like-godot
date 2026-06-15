@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+const AbilityManagerScript = preload("res://abilities/scripts/AbilityManager.gd")
+
 # Semua angka balancing player diambil dari resource agar mudah diubah dari editor.
 @export var config: PlayerConfig
 @export var weapon_config: WeaponConfig
@@ -26,10 +28,13 @@ var move_speed_percent_modifier := 0.0
 var projectile_count_modifier := 0
 var magnet_remaining := 0.0
 var magnet_activation_queue: Array[WeakRef] = []
+var ability_manager
 
 
 func _ready() -> void:
 	EventBus.ability_selected.connect(_on_ability_selected)
+	ability_manager = AbilityManagerScript.new()
+	ability_manager.setup(ability_modifier_config)
 	current_hp = get_max_hp()
 	current_xp = 0
 	current_level = 1
@@ -130,7 +135,8 @@ func get_move_speed() -> float:
 		base_speed = config.move_speed
 
 	var flat_speed := base_speed + move_speed_modifier
-	return maxf(0.0, flat_speed * (1.0 + move_speed_percent_modifier))
+	var percent_bonus := move_speed_percent_modifier + _get_player_move_speed_percent_modifier()
+	return maxf(0.0, flat_speed * (1.0 + percent_bonus))
 
 
 func get_max_hp() -> int:
@@ -138,7 +144,7 @@ func get_max_hp() -> int:
 	if config != null:
 		base_max_hp = config.max_hp
 
-	return maxi(1, base_max_hp + max_hp_modifier)
+	return maxi(1, base_max_hp + max_hp_modifier + _get_player_max_hp_modifier())
 
 
 func get_weapon_damage() -> int:
@@ -147,7 +153,8 @@ func get_weapon_damage() -> int:
 		base_damage = weapon_config.damage
 
 	var flat_damage := maxi(0, base_damage + flat_damage_modifier)
-	var scaled_damage := float(flat_damage) * (1.0 + damage_percent_modifier)
+	var percent_bonus := damage_percent_modifier + _get_weapon_damage_percent_modifier()
+	var scaled_damage := float(flat_damage) * (1.0 + percent_bonus)
 	return maxi(0, roundi(scaled_damage))
 
 
@@ -279,7 +286,8 @@ func get_attack_interval() -> float:
 		base_interval = weapon_config.attack_interval
 
 	var modified_interval := maxf(0.05, base_interval + attack_interval_modifier)
-	var attack_speed_scale := maxf(0.05, 1.0 + attack_speed_percent_modifier)
+	var percent_bonus := attack_speed_percent_modifier + _get_weapon_attack_speed_percent_modifier()
+	var attack_speed_scale := maxf(0.05, 1.0 + percent_bonus)
 	return maxf(0.05, modified_interval / attack_speed_scale)
 
 
@@ -291,7 +299,7 @@ func get_attack_range() -> float:
 
 
 func get_projectile_count() -> int:
-	return maxi(1, 1 + projectile_count_modifier)
+	return maxi(1, 1 + projectile_count_modifier + _get_weapon_projectile_count_modifier())
 
 
 func get_xp_required_for_next_level() -> int:
@@ -317,10 +325,27 @@ func _sync_xp_state() -> void:
 
 
 func _on_ability_selected(ability: Resource, rarity: int) -> void:
-	if ability == null or not ability.has_method("apply_to_player"):
+	if ability == null or ability_manager == null:
 		return
 
-	ability.call("apply_to_player", self, ability_modifier_config, rarity)
+	add_ability_to_manager(ability, rarity)
+
+
+func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
+	if ability == null or ability_manager == null:
+		return false
+
+	var max_hp_before := get_max_hp()
+	var added: bool = ability_manager.add_ability(ability, rarity)
+	if not added:
+		return false
+
+	var max_hp_after := get_max_hp()
+	if max_hp_after > max_hp_before:
+		current_hp = clampi(current_hp + (max_hp_after - max_hp_before), 0, max_hp_after)
+		_emit_health_changed()
+
+	return true
 
 
 func _apply_max_hp_modifier(amount: int) -> void:
@@ -366,6 +391,41 @@ func _get_default_modifier_value(modifier_type: int) -> float:
 			return 0.1
 		_:
 			return 0.0
+
+
+func _get_weapon_damage_percent_modifier() -> float:
+	if ability_manager == null:
+		return 0.0
+
+	return ability_manager.get_weapon_damage_percent_modifier()
+
+
+func _get_weapon_attack_speed_percent_modifier() -> float:
+	if ability_manager == null:
+		return 0.0
+
+	return ability_manager.get_weapon_attack_speed_percent_modifier()
+
+
+func _get_weapon_projectile_count_modifier() -> int:
+	if ability_manager == null:
+		return 0
+
+	return roundi(ability_manager.get_weapon_projectile_count_modifier())
+
+
+func _get_player_max_hp_modifier() -> int:
+	if ability_manager == null:
+		return 0
+
+	return roundi(ability_manager.get_player_max_hp_modifier())
+
+
+func _get_player_move_speed_percent_modifier() -> float:
+	if ability_manager == null:
+		return 0.0
+
+	return ability_manager.get_player_move_speed_percent_modifier()
 
 
 func _shoot_projectiles(target: Node2D) -> void:

@@ -1,8 +1,8 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/AbilitySelectionScreen.gd" id="1_ability_selection_screen"]
-[ext_resource type="Resource" path="res://resources/abilities/default_ability_pool.tres" id="2_ability_pool"]
-[ext_resource type="Resource" path="res://resources/abilities/default_ability_modifiers.tres" id="3_ability_modifier_config"]
+[ext_resource type="Resource" path="res://abilities/default_ability_pool.tres" id="2_ability_pool"]
+[ext_resource type="Resource" path="res://abilities/default_ability_modifiers.tres" id="3_ability_modifier_config"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dim_panel"]
 bg_color = Color(0.03, 0.04, 0.05, 0.78)

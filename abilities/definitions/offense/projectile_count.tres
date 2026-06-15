@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://abilities/scripts/AbilityDefinition.gd" id="1_ability_definition"]
+[ext_resource type="Script" path="res://abilities/scripts/AbilityEffect.gd" id="2_ability_effect"]
+
+[sub_resource type="Resource" id="AbilityEffect_projectile_count"]
+script = ExtResource("2_ability_effect")
+target = 1
+effect_type = 3
+value = 1.0
+stack_mode = 0
+
+[resource]
+script = ExtResource("1_ability_definition")
+id = "projectile_count"
+display_name = "Extra Shot"
+description = "Menambah jumlah projectile yang ditembakkan player."
+category = "Offense"
+rarity = "Rare"
+trigger = "level_up"
+stackable = true
+max_stack = 0
+effects = Array[Resource]([SubResource("AbilityEffect_projectile_count")])

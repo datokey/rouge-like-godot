@@ -5,7 +5,7 @@
 [ext_resource type="Resource" path="res://resources/actors/player_default.tres" id="3_player_config"]
 [ext_resource type="Resource" path="res://resources/weapons/basic_weapon.tres" id="4_weapon_config"]
 [ext_resource type="Resource" path="res://resources/xp/default_xp.tres" id="5_xp_config"]
-[ext_resource type="Resource" path="res://resources/abilities/default_ability_modifiers.tres" id="6_ability_modifier_config"]
+[ext_resource type="Resource" path="res://abilities/default_ability_modifiers.tres" id="6_ability_modifier_config"]
 [ext_resource type="Resource" path="res://resources/items/magnet_default.tres" id="7_magnet_config"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player_body"]
