@@ -9,19 +9,25 @@ extends Node2D
 var direction := Vector2.RIGHT
 var lifetime_remaining := 0.0
 var has_hit := false
+var speed_override := -1.0
 
 
 func _ready() -> void:
 	hitbox.body_entered.connect(_on_body_entered)
 	hitbox.area_entered.connect(_on_area_entered)
-	lifetime_remaining = config.lifetime
+	if config != null:
+		lifetime_remaining = config.lifetime
 
 
 func _physics_process(delta: float) -> void:
 	if has_hit:
 		return
 
-	position += direction * config.speed * delta
+	var move_speed := speed_override
+	if move_speed <= 0.0 and config != null:
+		move_speed = config.speed
+
+	position += direction * move_speed * delta
 	lifetime_remaining -= delta
 
 	if lifetime_remaining <= 0.0:
@@ -30,9 +36,15 @@ func _physics_process(delta: float) -> void:
 		call_deferred("queue_free")
 
 
-func setup(start_position: Vector2, target_position: Vector2, projectile_damage: int) -> void:
+func setup(
+	start_position: Vector2,
+	target_position: Vector2,
+	projectile_damage: int,
+	projectile_speed: float = -1.0
+) -> void:
 	global_position = start_position
 	damage = projectile_damage
+	speed_override = projectile_speed
 	direction = start_position.direction_to(target_position)
 	rotation = direction.angle()
 

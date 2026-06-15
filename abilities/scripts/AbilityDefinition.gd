@@ -11,6 +11,7 @@ class_name AbilityDefinition
 @export var stackable := true
 @export var max_stack := 0
 @export var effects: Array[Resource] = []
+@export var weapon_definition: Resource
 
 
 func get_upgrade_data() -> Dictionary:
@@ -34,6 +35,7 @@ func get_upgrade_data() -> Dictionary:
 		"stackable": stackable,
 		"max_stack": max_stack,
 		"effects": effect_data,
+		"weapon_id": get_weapon_id(),
 	}
 
 
@@ -48,6 +50,17 @@ func get_effects() -> Array[Resource]:
 
 func get_display_name() -> String:
 	return display_name
+
+
+func is_weapon_reward() -> bool:
+	return weapon_definition != null
+
+
+func get_weapon_id() -> String:
+	if weapon_definition == null:
+		return ""
+
+	return str(weapon_definition.get("id"))
 
 
 func get_rarity_value() -> int:
@@ -78,6 +91,9 @@ func get_final_value(modifier_config: AbilityModifierConfig, rarity_override: in
 
 
 func get_offer_text(modifier_config: AbilityModifierConfig, rarity_override: int = -1) -> String:
+	if is_weapon_reward():
+		return _get_weapon_offer_text()
+
 	var rarity_value := get_rarity_value() if rarity_override < 0 else rarity_override
 	var rarity_name := "Common"
 	var rarity_multiplier := 1.0
@@ -101,6 +117,17 @@ func get_offer_text(modifier_config: AbilityModifierConfig, rarity_override: int
 		display_name,
 		"\n".join(effect_lines),
 		rarity_multiplier,
+	]
+
+
+func _get_weapon_offer_text() -> String:
+	var weapon_name := display_name
+	if weapon_definition != null:
+		weapon_name = str(weapon_definition.get("display_name"))
+
+	return "%s | Weapon\n%s\nAdd or upgrade weapon" % [
+		rarity,
+		weapon_name,
 	]
 
 

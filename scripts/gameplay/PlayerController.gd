@@ -1,21 +1,22 @@
 extends CharacterBody2D
 
 const AbilityManagerScript = preload("res://abilities/scripts/AbilityManager.gd")
+const WeaponManagerScript = preload("res://scripts/gameplay/WeaponManager.gd")
 
 # Semua angka balancing player diambil dari resource agar mudah diubah dari editor.
 @export var config: PlayerConfig
-@export var weapon_config: WeaponConfig
 @export var xp_config: XPConfig
 @export var ability_modifier_config: AbilityModifierConfig
 @export var magnet_config: Resource
-@export var projectile_scene: PackedScene
+@export var starting_weapon: Resource
+@export var max_weapon_slots := 4
 
 @onready var pickup_area_collision: CollisionShape2D = $PickupArea/CollisionShape2D
+@onready var weapon_holder: Node2D = $WeaponHolder
 
 var current_hp := 0
 var current_xp := 0
 var current_level := 1
-var attack_timer := 0.0
 
 # Modifier runtime disiapkan untuk upgrade tanpa mengubah base config.
 var flat_damage_modifier := 0
@@ -29,12 +30,16 @@ var projectile_count_modifier := 0
 var magnet_remaining := 0.0
 var magnet_activation_queue: Array[WeakRef] = []
 var ability_manager
+var weapon_manager
 
 
 func _ready() -> void:
 	EventBus.ability_selected.connect(_on_ability_selected)
 	ability_manager = AbilityManagerScript.new()
 	ability_manager.setup(ability_modifier_config)
+	weapon_manager = WeaponManagerScript.new()
+	weapon_manager.max_weapon_slots = max_weapon_slots
+	weapon_manager.setup(self, weapon_holder, ability_manager)
 	current_hp = get_max_hp()
 	current_xp = 0
 	current_level = 1
@@ -47,8 +52,6 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_magnet(delta)
-	attack_timer = maxf(attack_timer - delta, 0.0)
-
 	var input_direction := Input.get_vector(
 		"move_left",
 		"move_right",
@@ -59,25 +62,12 @@ func _physics_process(delta: float) -> void:
 	velocity = input_direction * get_move_speed()
 	move_and_slide()
 
-	# Auto-shoot berjalan setiap frame, tetapi tetap dibatasi attack_timer.
-	_try_auto_attack()
+	# Auto-shoot sekarang dikelola masing-masing weapon di WeaponHolder.
 
 
-func _try_auto_attack() -> void:
-	if attack_timer > 0.0 or projectile_scene == null:
-		return
-
-	var target := _get_nearest_enemy()
-	if target == null:
-		return
-
-	_shoot_projectiles(target)
-	attack_timer = get_attack_interval()
-
-
-func _get_nearest_enemy() -> Node2D:
+func get_nearest_enemy_in_range(attack_range: float) -> Node2D:
 	var nearest_enemy: Node2D
-	var nearest_distance := get_attack_range()
+	var nearest_distance := attack_range
 
 	# Enemy dicari lewat group agar spawner bebas membuat enemy baru kapan saja.
 	for enemy in get_tree().get_nodes_in_group("enemy"):
@@ -145,17 +135,6 @@ func get_max_hp() -> int:
 		base_max_hp = config.max_hp
 
 	return maxi(1, base_max_hp + max_hp_modifier + _get_player_max_hp_modifier())
-
-
-func get_weapon_damage() -> int:
-	var base_damage := 0
-	if weapon_config != null:
-		base_damage = weapon_config.damage
-
-	var flat_damage := maxi(0, base_damage + flat_damage_modifier)
-	var percent_bonus := damage_percent_modifier + _get_weapon_damage_percent_modifier()
-	var scaled_damage := float(flat_damage) * (1.0 + percent_bonus)
-	return maxi(0, roundi(scaled_damage))
 
 
 func add_damage_modifier(amount: int) -> void:
@@ -280,28 +259,6 @@ func calculate_ability_modifier_value(
 	return ability_modifier_config.calculate_value(value_to_scale, rarity)
 
 
-func get_attack_interval() -> float:
-	var base_interval := 1.0
-	if weapon_config != null:
-		base_interval = weapon_config.attack_interval
-
-	var modified_interval := maxf(0.05, base_interval + attack_interval_modifier)
-	var percent_bonus := attack_speed_percent_modifier + _get_weapon_attack_speed_percent_modifier()
-	var attack_speed_scale := maxf(0.05, 1.0 + percent_bonus)
-	return maxf(0.05, modified_interval / attack_speed_scale)
-
-
-func get_attack_range() -> float:
-	if weapon_config == null:
-		return 0.0
-
-	return weapon_config.attack_range
-
-
-func get_projectile_count() -> int:
-	return maxi(1, 1 + projectile_count_modifier + _get_weapon_projectile_count_modifier())
-
-
 func get_xp_required_for_next_level() -> int:
 	var scaled_requirement := float(xp_config.required_per_level) * pow(xp_config.growth_multiplier, current_level - 1)
 	return maxi(1, roundi(scaled_requirement))
@@ -335,6 +292,12 @@ func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
 	if ability == null or ability_manager == null:
 		return false
 
+	if ability.has_method("is_weapon_reward") and ability.call("is_weapon_reward") == true:
+		var weapon_definition: Resource = ability.get("weapon_definition")
+		if weapon_manager == null:
+			return false
+		return weapon_manager.add_weapon(weapon_definition)
+
 	var max_hp_before := get_max_hp()
 	var added: bool = ability_manager.add_ability(ability, rarity)
 	if not added:
@@ -346,6 +309,27 @@ func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
 		_emit_health_changed()
 
 	return true
+
+
+func get_weapon_offer_context() -> Dictionary:
+	if weapon_manager == null:
+		return {}
+
+	return weapon_manager.get_offer_context()
+
+
+func equip_starting_weapon(weapon_definition: Resource = null) -> bool:
+	if weapon_manager == null:
+		return false
+
+	var selected_weapon := weapon_definition
+	if selected_weapon == null:
+		selected_weapon = starting_weapon
+	if selected_weapon == null:
+		return false
+
+	starting_weapon = selected_weapon
+	return weapon_manager.add_weapon(selected_weapon)
 
 
 func _apply_max_hp_modifier(amount: int) -> void:
@@ -426,22 +410,6 @@ func _get_player_move_speed_percent_modifier() -> float:
 		return 0.0
 
 	return ability_manager.get_player_move_speed_percent_modifier()
-
-
-func _shoot_projectiles(target: Node2D) -> void:
-	var projectile_count := get_projectile_count()
-	var base_direction := global_position.direction_to(target.global_position)
-	var spread_step := deg_to_rad(8.0)
-	var start_offset := -float(projectile_count - 1) * 0.5
-
-	for index in range(projectile_count):
-		var projectile := projectile_scene.instantiate()
-		get_tree().current_scene.add_child(projectile)
-
-		var spread_angle := (start_offset + float(index)) * spread_step
-		var shot_direction := base_direction.rotated(spread_angle)
-		var target_position := global_position + shot_direction * 100.0
-		projectile.call("setup", global_position, target_position, get_weapon_damage())
 
 
 func _update_magnet(delta: float) -> void:

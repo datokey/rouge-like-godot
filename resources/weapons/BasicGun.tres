@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/WeaponDefinition.gd" id="1_weapon_definition"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/BasicGun.tscn" id="2_basic_gun_scene"]
+
+[resource]
+script = ExtResource("1_weapon_definition")
+id = "basic_gun"
+display_name = "Basic Gun"
+description = "Senjata awal yang menembakkan projectile ke musuh terdekat."
+weapon_scene = ExtResource("2_basic_gun_scene")
+base_damage = 10.0
+base_cooldown = 0.25
+base_projectile_count = 1
+base_projectile_speed = 520.0
+base_range = 520.0
+max_level = 5
+damage_per_level = 2.0
+cooldown_reduction_per_level = 0.02

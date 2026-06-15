@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://ui/screens/GameOverScreen.tscn" id="5_game_over_screen"]
 [ext_resource type="PackedScene" path="res://ui/screens/AbilitySelectionScreen.tscn" id="6_ability_selection_screen"]
 [ext_resource type="PackedScene" path="res://ui/screens/WinScreen.tscn" id="7_win_screen"]
+[ext_resource type="PackedScene" path="res://ui/screens/StartingWeaponSelectionScreen.tscn" id="8_starting_weapon_selection_screen"]
 
 [node name="Main" type="Node2D" unique_id=1130339364]
 script = ExtResource("1_main")
@@ -32,4 +33,7 @@ layout_mode = 3
 layout_mode = 3
 
 [node name="GameOverScreen" parent="UI" unique_id=855442047 instance=ExtResource("5_game_over_screen")]
+layout_mode = 3
+
+[node name="StartingWeaponSelectionScreen" parent="UI" unique_id=918463512 instance=ExtResource("8_starting_weapon_selection_screen")]
 layout_mode = 3

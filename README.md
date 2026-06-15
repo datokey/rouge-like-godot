@@ -160,3 +160,69 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Untuk state global seperti HP player dan mode game, pakai `autoload/GameState.gd`.
 - Hindari spawn/free node physics langsung dari callback collision. Gunakan `call_deferred()` jika mengubah scene tree dari signal physics seperti `body_entered`.
 - Entity yang perlu dicari sistem lain sebaiknya memakai group, misalnya `player` dan `enemy`.
+
+### Menambahkan Senjata Baru 
+
+Untuk menambah senjata baru fokusnya ada di 3 tempat : 
+
+- Buat scane Weapn 
+  contoh lokasi : res://scenes/weapons/MyNewWeapon.tscn
+  Scane ini berisi logic senjata. Untuk Prototype, bisa pakai script sendiri atau reuse BasicGun.gd kalau senjatanya masih tipe projectile
+
+  contoh : 
+   - BasicGun.tscn untuk PROJECTILE
+   - nanti bisa buat AuraWeapon.tscn
+   - MeleeWeapon.tscn
+   - BeamWeapon.tscn 
+   - dst
+- Buat resource `WeaponDefinition`
+  contoh lokasi : res://resources/weapons/my_new_weapon.tres
+  Resource ini berisi data senjata
+
+  contoh 
+   - id
+   - display name
+   - description
+   - icon
+   - weapon type
+   - weapon scene
+   - base damage
+   - base cooldown
+   - base range
+   - max level
+
+    Contoh yang sudah ada : 
+    - `BasicGun.tres`
+    - `RapidGun.tres`
+    - `ScatterGun.tres`
+- Masukkan ke Pool pilihan 
+  Kalau ingin muncul sebagai starting weapon, tambahkan resource-nya di Main.gd bagian : 
+  
+  const DEFAULT_STARTING_WEAPONS: Array[Resource] = [
+	`preload("res://resources/weapons/BasicGun.tres")`,
+	`preload("res://resources/weapons/RapidGun.tres")`,
+	`preload("res://resources/weapons/ScatterGun.tres")`,
+]
+
+Tambahkan : 
+  preload("res://resources/weapons/MyNewWeapon.tres"),
+
+  Kalau ingin muncul sebagai reward level up, buat ability reward seperti 
+  res://abilities/definitions/weapons/my_new_weapon_reward.tres
+
+  isinya mengarah ke MyNewWeapon.tres, mirip : 
+    - `basic_gun_reward.tres`
+    - `rapid_gun_reward.tres`
+
+  lalu daftarkan resource reward itu ke : 
+  `default_ability_pool.tress`
+
+  Untuk tipe senjata: 
+  - PROJECTILE : Pakai projectile, cocok reuser `BasicGun.gd`
+  - AURA : damage area sekitar player tiap interval
+  - SUMMON : spawn minion/helper
+  - BEAM : tembakan garis/leser
+  - MELEE : serangan jarak dekat
+ Saat ini yang benar-benar sudah punya implementasi contoh adalah `PROJECTILE`. Type lain sudah siap di WeaponDefinition, tapi perlu dibuat scene/script logic masing-masing.
+
+  

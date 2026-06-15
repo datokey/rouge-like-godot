@@ -61,7 +61,8 @@ func _roll_offers() -> Array[Dictionary]:
 	var rolled_abilities := ability_pool_config.roll_offers(
 		option_buttons.size(),
 		taken_non_stackable_ids,
-		taken_ability_counts
+		taken_ability_counts,
+		_get_weapon_offer_context()
 	)
 	for ability in rolled_abilities:
 		var rarity := ability.get_rarity_value()
@@ -73,6 +74,16 @@ func _roll_offers() -> Array[Dictionary]:
 		})
 
 	return offers
+
+
+func _get_weapon_offer_context() -> Dictionary:
+	var player := get_tree().get_first_node_in_group("player")
+	if player != null and player.has_method("get_weapon_offer_context"):
+		var context = player.call("get_weapon_offer_context")
+		if typeof(context) == TYPE_DICTIONARY:
+			return context
+
+	return {}
 
 
 func _refresh_screen() -> void:

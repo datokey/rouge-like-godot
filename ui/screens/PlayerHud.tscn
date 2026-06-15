@@ -12,6 +12,7 @@ bg_color = Color(0.22, 0.62, 1, 1)
 bg_color = Color(1, 0.78, 0.24, 1)
 
 [node name="PlayerHud" type="Control"]
+mouse_filter = 2
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
