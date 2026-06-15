@@ -69,7 +69,11 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - `resources/actors/enemy_tank.tres`
   Config Tank: HP, movement speed lambat, contact damage besar, jumlah roll XP 2-3, weighted XP/HP drop khusus, dan peluang drop HP lebih tinggi.
 - `resources/weapons/basic_weapon.tres`
-  Damage senjata, interval serangan, dan range auto-shoot.
+  Resource senjata lama untuk kompatibilitas prototype awal.
+- `resources/weapons/BasicGun.tres`
+  Contoh weapon `PROJECTILE` yang memakai scene `BasicGun.tscn`.
+- `resources/weapons/BeamGun.tres`
+  Contoh weapon `BEAM` yang memakai `RayCast2D` untuk hit detection dan `Line2D` untuk visual laser.
 - `resources/abilities/default_ability_modifiers.tres`
   Default nilai modifier ability dan multiplier rarity.
 - `resources/abilities/default_ability_pool.tres`
@@ -110,17 +114,18 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 5. `DifficultyManager` menghitung progress dari `GameState.run_elapsed_time / GameState.run_target_time`.
 6. `EnemySpawner` memilih enemy dari phase aktif, lalu memberi multiplier HP, damage, dan move speed ke enemy yang baru di-spawn.
 7. `EnemyController` membaca `EnemyConfig` sebagai base stat, lalu memakai multiplier runtime dari Difficulty Manager.
-8. Player auto-shoot ke enemy terdekat dalam range.
-9. `Projectile` memanggil `take_damage()` pada enemy yang terkena.
-10. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
-11. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
-12. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
-13. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
-14. Player menerapkan ability terpilih, lalu game berjalan kembali.
-15. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
-16. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
-17. Jika HP player habis sebelum survival timer selesai, `RunManager` memicu lose state dan `GameOverScreen` muncul.
-18. Jika survival timer mencapai target, `RunManager` memicu win state dan `WinScreen` muncul.
+8. `WeaponManager` men-spawn weapon aktif dari `WeaponDefinition` yang dipilih player.
+9. Weapon aktif mencari target dan memberi damage sesuai logic scene masing-masing.
+10. `Projectile` atau weapon lain memanggil `take_damage()` pada enemy yang terkena.
+11. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
+12. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
+13. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
+14. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
+15. Player menerapkan ability terpilih, lalu game berjalan kembali.
+16. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
+17. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
+18. Jika HP player habis sebelum survival timer selesai, `RunManager` memicu lose state dan `GameOverScreen` muncul.
+19. Jika survival timer mencapai target, `RunManager` memicu win state dan `WinScreen` muncul.
 
 ## Catatan maintenance
 
@@ -161,68 +166,95 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Hindari spawn/free node physics langsung dari callback collision. Gunakan `call_deferred()` jika mengubah scene tree dari signal physics seperti `body_entered`.
 - Entity yang perlu dicari sistem lain sebaiknya memakai group, misalnya `player` dan `enemy`.
 
-### Menambahkan Senjata Baru 
+### Menambahkan Senjata Baru
 
-Untuk menambah senjata baru fokusnya ada di 3 tempat : 
+Sistem weapon sekarang berbasis scene dan resource. Player tidak menembak langsung dari script; `WeaponManager` men-spawn scene weapon dari `WeaponDefinition.weapon_scene`.
 
-- Buat scane Weapn 
-  contoh lokasi : res://scenes/weapons/MyNewWeapon.tscn
-  Scane ini berisi logic senjata. Untuk Prototype, bisa pakai script sendiri atau reuse BasicGun.gd kalau senjatanya masih tipe projectile
+1. Buat scene weapon.
 
-  contoh : 
-   - BasicGun.tscn untuk PROJECTILE
-   - nanti bisa buat AuraWeapon.tscn
-   - MeleeWeapon.tscn
-   - BeamWeapon.tscn 
-   - dst
-- Buat resource `WeaponDefinition`
-  contoh lokasi : res://resources/weapons/my_new_weapon.tres
-  Resource ini berisi data senjata
+   Contoh lokasi:
 
-  contoh 
-   - id
-   - display name
-   - description
-   - icon
-   - weapon type
-   - weapon scene
-   - base damage
-   - base cooldown
-   - base range
-   - max level
+   - `res://scenes/weapons/MyNewWeapon.tscn`
 
-    Contoh yang sudah ada : 
-    - `BasicGun.tres`
-    - `RapidGun.tres`
-    - `ScatterGun.tres`
-- Masukkan ke Pool pilihan 
-  Kalau ingin muncul sebagai starting weapon, tambahkan resource-nya di Main.gd bagian : 
-  
-  const DEFAULT_STARTING_WEAPONS: Array[Resource] = [
-	`preload("res://resources/weapons/BasicGun.tres")`,
-	`preload("res://resources/weapons/RapidGun.tres")`,
-	`preload("res://resources/weapons/ScatterGun.tres")`,
-]
+   Scene ini berisi logic senjata. Kalau masih projectile biasa, bisa reuse `BasicGun.gd`. Kalau behavior berbeda, buat script baru seperti `BeamGun.gd`.
 
-Tambahkan : 
-  preload("res://resources/weapons/MyNewWeapon.tres"),
+   Contoh yang sudah ada:
 
-  Kalau ingin muncul sebagai reward level up, buat ability reward seperti 
-  res://abilities/definitions/weapons/my_new_weapon_reward.tres
+   - `scenes/weapons/BasicGun.tscn` untuk `PROJECTILE`
+   - `scenes/weapons/BeamGun.tscn` untuk `BEAM`
 
-  isinya mengarah ke MyNewWeapon.tres, mirip : 
-    - `basic_gun_reward.tres`
-    - `rapid_gun_reward.tres`
+2. Buat resource `WeaponDefinition`.
 
-  lalu daftarkan resource reward itu ke : 
-  `default_ability_pool.tress`
+   Contoh lokasi:
 
-  Untuk tipe senjata: 
-  - PROJECTILE : Pakai projectile, cocok reuser `BasicGun.gd`
-  - AURA : damage area sekitar player tiap interval
-  - SUMMON : spawn minion/helper
-  - BEAM : tembakan garis/leser
-  - MELEE : serangan jarak dekat
- Saat ini yang benar-benar sudah punya implementasi contoh adalah `PROJECTILE`. Type lain sudah siap di WeaponDefinition, tapi perlu dibuat scene/script logic masing-masing.
+   - `res://resources/weapons/MyNewWeapon.tres`
+
+   Field penting:
+
+   - `id`
+   - `display_name`
+   - `description`
+   - `icon`
+   - `weapon_type`
+   - `weapon_scene`
+   - `base_damage`
+   - `base_cooldown`
+   - `base_range`
+   - `max_level`
+
+   Field tambahan yang sudah tersedia untuk scaling level:
+
+   - `damage_per_level`
+   - `cooldown_reduction_per_level`
+   - `base_projectile_count`
+   - `projectile_count_per_level`
+   - `base_projectile_speed`
+   - `projectile_speed_per_level`
+   - `beam_duration`
+   - `beam_duration_per_level`
+   - `beam_tick_interval`
+   - `beam_tick_interval_reduction_per_level`
+   - `beam_width`
+
+3. Masukkan ke pilihan starting weapon.
+
+   Tambahkan resource weapon ke `DEFAULT_STARTING_WEAPONS` di `scripts/gameplay/Main.gd`:
+
+   ```gdscript
+   const DEFAULT_STARTING_WEAPONS: Array[Resource] = [
+	preload("res://resources/weapons/BasicGun.tres"),
+	preload("res://resources/weapons/RapidGun.tres"),
+	preload("res://resources/weapons/ScatterGun.tres"),
+	preload("res://resources/weapons/BeamGun.tres"),
+	preload("res://resources/weapons/MyNewWeapon.tres"),
+   ]
+   ```
+
+4. Masukkan ke reward level up.
+
+   Buat resource ability reward di:
+
+   - `res://abilities/definitions/weapons/my_new_weapon_reward.tres`
+
+   Isi `weapon_definition` dengan resource weapon baru. Contoh:
+
+   - `abilities/definitions/weapons/basic_gun_reward.tres`
+   - `abilities/definitions/weapons/rapid_gun_reward.tres`
+   - `abilities/definitions/weapons/beam_gun_reward.tres`
+
+   Setelah itu daftarkan reward tersebut ke:
+
+   - `abilities/default_ability_pool.tres`
+
+5. Pilih tipe weapon yang sesuai.
+
+   - `PROJECTILE`: menembakkan projectile, contoh `BasicGun.gd`.
+   - `AURA`: damage area sekitar player tiap interval.
+   - `AREA`: spawn area damage di posisi tertentu.
+   - `SUMMON`: spawn minion/helper.
+   - `BEAM`: laser garis memakai `RayCast2D` dan `Line2D`, contoh `BeamGun.gd`.
+   - `MELEE`: serangan jarak dekat seperti arc/swing.
+
+   Untuk behavior baru, buat script weapon baru dengan fungsi `setup(weapon_instance)`. Dari `weapon_instance`, weapon bisa membaca damage, cooldown, range, level, dan modifier ability.
 
   

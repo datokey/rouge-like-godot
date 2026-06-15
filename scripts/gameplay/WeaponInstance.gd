@@ -69,6 +69,22 @@ func get_attack_range() -> float:
 	return maxf(0.0, _get_float("base_range", 300.0))
 
 
+func get_beam_duration() -> float:
+	var base_duration := _get_float("beam_duration", 1.2)
+	var duration_per_level := _get_float("beam_duration_per_level", 0.0)
+	return maxf(0.05, base_duration + duration_per_level * float(level - 1))
+
+
+func get_beam_tick_interval() -> float:
+	var base_interval := _get_float("beam_tick_interval", 0.2)
+	var reduction := _get_float("beam_tick_interval_reduction_per_level", 0.0) * float(level - 1)
+	return maxf(0.03, base_interval - reduction)
+
+
+func get_beam_width() -> float:
+	return maxf(1.0, _get_float("beam_width", 5.0))
+
+
 func _get_float(property_name: String, fallback: float) -> float:
 	if definition == null:
 		return fallback

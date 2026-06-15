@@ -29,6 +29,12 @@ enum WeaponType {
 @export var cooldown_reduction_per_level: float = 0.03
 @export var projectile_count_per_level: int = 0
 @export var projectile_speed_per_level: float = 0.0
+@export_group("Beam")
+@export var beam_duration: float = 1.2
+@export var beam_duration_per_level: float = 0.1
+@export var beam_tick_interval: float = 0.2
+@export var beam_tick_interval_reduction_per_level: float = 0.01
+@export var beam_width: float = 5.0
 
 
 func get_display_name() -> String:

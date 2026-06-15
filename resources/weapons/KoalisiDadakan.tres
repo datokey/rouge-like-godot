@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="SummonWeaponDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/SummonWeaponDefinition.gd" id="1_summon_weapon_definition"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/KoalisiDadakan.tscn" id="2_koalisi_dadakan_scene"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Simpatisan.tscn" id="3_simpatisan_scene"]
+[ext_resource type="PackedScene" path="res://scenes/entities/Projectile.tscn" id="4_projectile_scene"]
+
+[resource]
+script = ExtResource("1_summon_weapon_definition")
+id = "koalisi_dadakan"
+display_name = "Koalisi Dadakan"
+description = "Memanggil Simpatisan yang berjuang bersama player. Setiap Simpatisan akan menembakkan peluru ke musuh terdekat."
+weapon_type = 3
+weapon_scene = ExtResource("2_koalisi_dadakan_scene")
+base_damage = 10.0
+base_cooldown = 10.0
+base_range = 400.0
+max_level = 5
+damage_per_level = 3.0
+cooldown_reduction_per_level = 0.5
+
+minion_name = "Simpatisan"
+minion_scene = ExtResource("3_simpatisan_scene")
+minion_projectile_scene = ExtResource("4_projectile_scene")
+minion_damage_multiplier = 0.7
+max_active_minions = 4
+summon_interval = 10.0
+minion_lifetime = 25.0
+minion_attack_cooldown = 1.5
+minion_attack_range = 400.0
+minion_projectile_speed = 400.0
+minion_orbit_radius = 60.0
