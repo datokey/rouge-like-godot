@@ -7,12 +7,12 @@ const WeaponManagerScript = preload("res://scripts/gameplay/WeaponManager.gd")
 @export var config: PlayerConfig
 @export var xp_config: XPConfig
 @export var ability_modifier_config: AbilityModifierConfig
-@export var magnet_config: Resource
 @export var starting_weapon: Resource
 @export var max_weapon_slots := 4
 
 @onready var pickup_area_collision: CollisionShape2D = $PickupArea/CollisionShape2D
 @onready var weapon_holder: Node2D = $WeaponHolder
+@onready var magnet_component: Node = $MagnetComponent
 
 var current_hp := 0
 var current_xp := 0
@@ -27,8 +27,6 @@ var max_hp_modifier := 0
 var move_speed_modifier := 0.0
 var move_speed_percent_modifier := 0.0
 var projectile_count_modifier := 0
-var magnet_remaining := 0.0
-var magnet_activation_queue: Array[WeakRef] = []
 var ability_manager
 var weapon_manager
 
@@ -51,7 +49,6 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_update_magnet(delta)
 	var input_direction := Input.get_vector(
 		"move_left",
 		"move_right",
@@ -210,12 +207,10 @@ func add_move_speed_modifier(
 
 
 func activate_magnet() -> void:
-	if magnet_config == null:
+	if magnet_component == null or not magnet_component.has_method("activate"):
 		return
 
-	magnet_remaining = maxf(magnet_remaining, _get_magnet_duration())
-	_refresh_magnet_activation_queue()
-	_process_magnet_activation_queue()
+	magnet_component.call("activate")
 
 
 func apply_ability_modifier(
@@ -410,98 +405,6 @@ func _get_player_move_speed_percent_modifier() -> float:
 		return 0.0
 
 	return ability_manager.get_player_move_speed_percent_modifier()
-
-
-func _update_magnet(delta: float) -> void:
-	if magnet_remaining <= 0.0:
-		return
-
-	magnet_remaining = maxf(magnet_remaining - delta, 0.0)
-	_process_magnet_activation_queue()
-
-	if magnet_remaining <= 0.0:
-		magnet_activation_queue.clear()
-
-
-func _refresh_magnet_activation_queue() -> void:
-	magnet_activation_queue.clear()
-	var magnet_radius := _get_magnet_radius()
-
-	for pickup_node in get_tree().get_nodes_in_group("pickup_item"):
-		var pickup := pickup_node as Node2D
-		if pickup == null:
-			continue
-		if not pickup.has_method("can_be_magnetized") or not pickup.call("can_be_magnetized"):
-			continue
-		if magnet_radius > 0.0 and global_position.distance_to(pickup.global_position) > magnet_radius:
-			continue
-
-		magnet_activation_queue.append(weakref(pickup))
-
-
-func _process_magnet_activation_queue() -> void:
-	if magnet_config == null or magnet_remaining <= 0.0:
-		return
-
-	var batch_size := maxi(1, _get_magnet_activation_batch_size())
-	var processed_count := 0
-	var magnet_pull_speed := _get_magnet_pull_speed()
-	var magnet_radius := _get_magnet_radius()
-
-	while processed_count < batch_size and not magnet_activation_queue.is_empty():
-		var pickup_ref: WeakRef = magnet_activation_queue.pop_back()
-		processed_count += 1
-
-		if pickup_ref == null:
-			continue
-
-		var pickup := pickup_ref.get_ref() as Node
-		if pickup == null or not is_instance_valid(pickup):
-			continue
-		if not pickup.has_method("activate_magnet_pull"):
-			continue
-
-		pickup.call(
-			"activate_magnet_pull",
-			self,
-			magnet_remaining,
-			magnet_pull_speed,
-			magnet_radius
-		)
-
-
-func _get_magnet_duration() -> float:
-	return _get_magnet_float("duration", 5.0)
-
-
-func _get_magnet_radius() -> float:
-	return _get_magnet_float("radius", 0.0)
-
-
-func _get_magnet_pull_speed() -> float:
-	return _get_magnet_float("pull_speed", 420.0)
-
-
-func _get_magnet_activation_batch_size() -> int:
-	if magnet_config == null:
-		return 32
-
-	var value: Variant = magnet_config.get("activation_batch_size")
-	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
-		return roundi(float(value))
-
-	return 32
-
-
-func _get_magnet_float(property_name: String, fallback: float) -> float:
-	if magnet_config == null:
-		return fallback
-
-	var value: Variant = magnet_config.get(property_name)
-	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
-		return float(value)
-
-	return fallback
 
 
 func _apply_pickup_radius() -> void:

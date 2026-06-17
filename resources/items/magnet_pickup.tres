@@ -1,8 +1,18 @@
-[gd_resource type="Resource" script_class="PickupConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="PickupConfig" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/gameplay/PickupConfig.gd" id="1_pickup_config"]
+[ext_resource type="Script" path="res://scripts/gameplay/pickups/ActivateUtilityPickupEffect.gd" id="2_utility_effect"]
+
+[sub_resource type="Resource" id="ActivateUtilityPickupEffect_magnet"]
+script = ExtResource("2_utility_effect")
+method_name = &"activate_magnet"
 
 [resource]
 script = ExtResource("1_pickup_config")
-kind = "magnet"
+id = "magnet"
+display_name = "Magnet"
+magnetizable = false
+visual_color = Color(1, 0.85, 0.2, 1)
+label_template = "MAGNET"
 amount = 1
+effects = Array[Resource]([SubResource("ActivateUtilityPickupEffect_magnet")])

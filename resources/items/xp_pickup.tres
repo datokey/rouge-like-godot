@@ -1,8 +1,19 @@
-[gd_resource type="Resource" script_class="PickupConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="PickupConfig" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/gameplay/PickupConfig.gd" id="1_pickup_config"]
+[ext_resource type="Script" path="res://scripts/gameplay/pickups/AddXpPickupEffect.gd" id="2_xp_effect"]
+
+[sub_resource type="Resource" id="AddXpPickupEffect_xp"]
+script = ExtResource("2_xp_effect")
+amount = 1
+use_config_amount = true
 
 [resource]
 script = ExtResource("1_pickup_config")
-kind = "xp"
+id = "xp"
+display_name = "XP"
+magnetizable = true
+visual_color = Color(0.2, 0.62, 1, 1)
+label_template = "XP: {amount}"
 amount = 1
+effects = Array[Resource]([SubResource("AddXpPickupEffect_xp")])

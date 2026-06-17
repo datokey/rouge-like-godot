@@ -120,14 +120,14 @@ func _die() -> void:
 		var xp_amount := _roll_xp_drop_amount()
 		if xp_amount > 0 and xp_pickup_config != null:
 			var xp_config: PickupConfig = xp_pickup_config.duplicate() as PickupConfig
-			xp_config.amount = xp_amount
+			_set_pickup_runtime_amount(xp_config, xp_amount)
 			call_deferred("_drop_pickup", _get_xp_drop_position(drop_position, index, xp_drop_count), xp_config)
 
 	if health_pickup_config != null and Rng.chance(config.health_drop_chance):
 		var hp_amount := _roll_hp_drop_amount()
 		if hp_amount > 0:
 			var hp_config: PickupConfig = health_pickup_config.duplicate() as PickupConfig
-			hp_config.amount = hp_amount
+			_set_pickup_runtime_amount(hp_config, hp_amount)
 			call_deferred("_drop_pickup", drop_position, hp_config)
 
 	if magnet_pickup_config != null and Rng.chance(config.magnet_drop_chance):
@@ -150,6 +150,15 @@ func _drop_pickup(drop_position: Vector2, pickup_config: PickupConfig) -> void:
 	if pickup.has_method("set_pickup_config"):
 		pickup.call("set_pickup_config", pickup_config)
 	pickup.global_position = drop_position
+
+
+func _set_pickup_runtime_amount(pickup_config: PickupConfig, amount: int) -> void:
+	if pickup_config == null:
+		return
+	if pickup_config.has_method("set_runtime_amount"):
+		pickup_config.call("set_runtime_amount", amount)
+	else:
+		pickup_config.amount = amount
 
 
 func set_contact_damage_bonus(value: int) -> void:

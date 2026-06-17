@@ -51,7 +51,7 @@ func can_be_magnetized() -> bool:
 	if is_collected or config == null:
 		return false
 
-	return config.kind == "hp" or config.kind == "xp"
+	return config.magnetizable
 
 
 func activate_magnet_pull(target: Node2D, duration: float, pull_speed: float, radius: float) -> void:
@@ -89,35 +89,39 @@ func _try_collect(target: Node) -> void:
 
 
 func _apply_to_player(player: Node) -> void:
-	match config.kind:
-		"hp":
-			if player.has_method("heal"):
-				player.heal(config.amount)
-		"xp":
-			if player.has_method("add_xp"):
-				player.add_xp(config.amount)
-		"magnet":
-			if player.has_method("activate_magnet"):
-				player.activate_magnet()
+	if config == null:
+		return
+
+	for effect in config.effects:
+		if effect != null and effect.has_method("apply"):
+			effect.apply(player)
 
 
 func _apply_dummy_visual() -> void:
 	value_label.hide()
 	value_label.text = ""
 
-	match config.kind:
-		"hp":
-			visual.color = Color(0.2, 1.0, 0.35, 1.0)
-			value_label.show()
-			value_label.text = "HP: %d" % config.amount
-		"xp":
-			visual.color = Color(0.2, 0.62, 1.0, 1.0)
-			value_label.show()
-			value_label.text = "XP: %d" % config.amount
-		"magnet":
-			visual.color = Color(1.0, 0.85, 0.2, 1.0)
-			value_label.show()
-			value_label.text = "MAGNET"
+	if config == null:
+		return
+
+	visual.color = config.visual_color
+	var label_text := _get_label_text()
+	if not label_text.is_empty():
+		value_label.show()
+		value_label.text = label_text
+
+
+func _get_label_text() -> String:
+	if config == null:
+		return ""
+	if config.label_template.is_empty():
+		return ""
+
+	return config.label_template.format({
+		"amount": config.amount,
+		"display_name": config.display_name,
+		"id": config.id,
+	})
 
 
 func _clear_magnet_pull() -> void:
