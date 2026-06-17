@@ -1,7 +1,14 @@
 extends Resource
 class_name AbilityPoolConfig
 
+enum RollMode {
+	WEIGHTED,
+	CATEGORY_SLOTS,
+}
+
 @export var offer_count := 3
+@export var roll_mode: RollMode = RollMode.WEIGHTED
+@export var category_slots: Array[String] = ["Safe", "Risky", "Weird"]
 @export var abilities: Array[Resource] = []
 @export var fallback_abilities: Array[Resource] = []
 
@@ -38,7 +45,11 @@ func roll_offers(
 
 	var target_count := mini(offer_count, max_offer_count)
 	var available_abilities := get_valid_abilities([], {}, context)
-	var offers := _roll_weighted_without_duplicates(available_abilities, target_count)
+	var offers: Array[AbilityDefinition] = []
+	if roll_mode == RollMode.CATEGORY_SLOTS:
+		offers = _roll_category_slots(available_abilities, target_count)
+	else:
+		offers = _roll_weighted_without_duplicates(available_abilities, target_count)
 
 	if offers.size() < target_count:
 		_add_fallback_offers(offers, context, target_count)
@@ -66,6 +77,8 @@ func _merge_legacy_selection_context(
 
 func _is_reward_valid(ability: AbilityDefinition, context: Dictionary) -> bool:
 	if ability.id.is_empty():
+		return false
+	if not ability.is_eligible(context):
 		return false
 
 	var category := ability.get_reward_category(context)
@@ -160,11 +173,40 @@ func _can_offer_modifier(ability: AbilityDefinition, context: Dictionary) -> boo
 
 func _has_required_weapon(ability: AbilityDefinition, context: Dictionary) -> bool:
 	var target_weapon_id := ability.get_target_weapon_id()
-	if target_weapon_id.is_empty():
-		var owned_weapon_ids: Array = context.get("owned_weapon_ids", [])
-		return not owned_weapon_ids.is_empty()
+	if not target_weapon_id.is_empty():
+		return _is_weapon_owned(target_weapon_id, context) and _weapon_supports_ability(
+			target_weapon_id,
+			ability,
+			context
+		)
 
-	return _is_weapon_owned(target_weapon_id, context)
+	var owned_weapon_ids: Array = context.get("owned_weapon_ids", [])
+	for weapon_id in owned_weapon_ids:
+		if _weapon_supports_ability(str(weapon_id), ability, context):
+			return true
+
+	return false
+
+
+func _weapon_supports_ability(
+	weapon_id: String,
+	ability: AbilityDefinition,
+	context: Dictionary
+) -> bool:
+	var capabilities_by_weapon: Dictionary = context.get(
+		"owned_weapon_modifier_capabilities",
+		{}
+	)
+	# Context lama tidak membawa capability; pertahankan perilakunya agar kompatibel.
+	if not capabilities_by_weapon.has(weapon_id):
+		return true
+
+	var supported_keys: Array = capabilities_by_weapon.get(weapon_id, [])
+	for modifier_key in ability.get_weapon_modifier_keys():
+		if not supported_keys.has(modifier_key):
+			return false
+
+	return true
 
 
 func _has_required_skill(ability: AbilityDefinition, context: Dictionary) -> bool:
@@ -274,3 +316,35 @@ func _get_valid_fallback_candidates(context: Dictionary) -> Array[AbilityDefinit
 		candidates.append(ability)
 
 	return candidates
+
+
+func _roll_category_slots(
+	candidates: Array[AbilityDefinition],
+	target_count: int
+) -> Array[AbilityDefinition]:
+	var offers: Array[AbilityDefinition] = []
+	var available := candidates.duplicate()
+
+	for category_name in category_slots:
+		if offers.size() >= target_count:
+			break
+
+		var category_candidates: Array[AbilityDefinition] = []
+		for ability in available:
+			if ability.category == category_name:
+				category_candidates.append(ability)
+
+		var category_offer := _roll_weighted_without_duplicates(category_candidates, 1)
+		if category_offer.is_empty():
+			continue
+
+		offers.append(category_offer[0])
+		available.erase(category_offer[0])
+
+	if offers.size() < target_count:
+		offers.append_array(_roll_weighted_without_duplicates(
+			available,
+			target_count - offers.size()
+		))
+
+	return offers

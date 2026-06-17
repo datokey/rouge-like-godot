@@ -12,4 +12,5 @@ category = "Offense"
 rarity = "Common"
 stackable = true
 max_stack = 5
+reward_category = 2
 weapon_definition = ExtResource("2_basic_gun")

@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 const AbilityManagerScript = preload("res://abilities/scripts/AbilityManager.gd")
+const AbilityRewardApplierScript = preload("res://abilities/scripts/AbilityRewardApplier.gd")
 const WeaponManagerScript = preload("res://scripts/gameplay/WeaponManager.gd")
 const SkillManagerScript = preload("res://scripts/gameplay/SkillManager.gd")
 
@@ -33,12 +34,14 @@ var projectile_count_modifier := 0
 var ability_manager
 var weapon_manager
 var skill_manager
+var ability_reward_applier
 
 
 func _ready() -> void:
 	EventBus.ability_selected.connect(_on_ability_selected)
 	ability_manager = AbilityManagerScript.new()
 	ability_manager.setup(ability_modifier_config)
+	ability_reward_applier = AbilityRewardApplierScript.new()
 	weapon_manager = WeaponManagerScript.new()
 	weapon_manager.max_weapon_slots = max_weapon_slots
 	weapon_manager.setup(self, weapon_holder, ability_manager)
@@ -291,22 +294,18 @@ func _on_ability_selected(ability: Resource, rarity: int) -> void:
 
 
 func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
-	if ability == null or ability_manager == null:
+	var ability_definition := ability as AbilityDefinition
+	if ability_definition == null or ability_manager == null or ability_reward_applier == null:
 		return false
 
-	if ability.has_method("is_weapon_reward") and ability.call("is_weapon_reward") == true:
-		var weapon_definition: Resource = ability.get("weapon_definition")
-		if weapon_manager == null:
-			return false
-		return weapon_manager.add_weapon(weapon_definition)
-	if ability.has_method("is_skill_reward") and ability.call("is_skill_reward") == true:
-		var skill_definition: Resource = ability.get("skill_definition")
-		if skill_manager == null:
-			return false
-		return skill_manager.add_skill(skill_definition)
-
 	var max_hp_before := get_max_hp()
-	var added: bool = ability_manager.add_ability(ability, rarity)
+	var added: bool = ability_reward_applier.apply(
+		ability_definition,
+		rarity,
+		ability_manager,
+		weapon_manager,
+		skill_manager
+	)
 	if not added:
 		return false
 
@@ -324,6 +323,7 @@ func get_weapon_offer_context() -> Dictionary:
 
 func get_reward_offer_context() -> Dictionary:
 	var context := {
+		"player_level": current_level,
 		"owned_skill_ids": [],
 		"owned_skill_levels": {},
 		"owned_skill_max_levels": {},
@@ -333,6 +333,7 @@ func get_reward_offer_context() -> Dictionary:
 		"can_add_skill": false,
 		"skill_manager_active": false,
 		"selected_reward_ids": [],
+		"selected_reward_counts": {},
 		"modifier_stack_counts": {},
 	}
 

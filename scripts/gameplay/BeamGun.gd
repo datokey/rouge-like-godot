@@ -11,6 +11,9 @@ var beam_remaining := 0.0
 var damage_tick_timer := 0.0
 var current_target: Node2D
 var beam_direction := Vector2.RIGHT
+var beam_rays: Array[RayCast2D] = []
+var beam_lines: Array[Line2D] = []
+var beam_directions: Array[Vector2] = []
 
 
 func _ready() -> void:
@@ -19,6 +22,8 @@ func _ready() -> void:
 	raycast.enabled = true
 	raycast.collide_with_areas = true
 	raycast.collide_with_bodies = true
+	beam_rays = [raycast]
+	beam_lines = [laser_line]
 
 
 func _on_weapon_setup() -> void:
@@ -57,12 +62,15 @@ func _physics_process(delta: float) -> void:
 
 func _start_beam(target: Node2D) -> void:
 	current_target = target
+	_ensure_beam_channels(weapon_instance.get_projectile_count())
+	_update_beam_color()
 	beam_remaining = weapon_instance.get_beam_duration()
 	damage_tick_timer = 0.0
-	laser_line.visible = true
-	laser_line.width = weapon_instance.get_beam_width()
+	for line in beam_lines:
+		line.visible = true
+		line.width = weapon_instance.get_beam_width()
 	_update_beam_direction()
-	_damage_current_raycast_target()
+	_damage_current_raycast_targets()
 
 
 func _update_active_beam(delta: float) -> void:
@@ -71,11 +79,11 @@ func _update_active_beam(delta: float) -> void:
 
 	damage_tick_timer -= delta
 	while damage_tick_timer <= 0.0 and beam_remaining > 0.0:
-		_damage_current_raycast_target()
+		_damage_current_raycast_targets()
 		damage_tick_timer += weapon_instance.get_beam_tick_interval()
 
 	if beam_remaining <= 0.0:
-		laser_line.visible = false
+		_set_beams_visible(false)
 		cooldown_timer = get_cooldown()
 
 
@@ -93,29 +101,148 @@ func _update_beam_direction() -> void:
 	if beam_direction.length_squared() <= 0.0:
 		beam_direction = Vector2.RIGHT
 
-	var end_point: Vector2 = beam_direction.normalized() * get_range()
-	_update_laser_visual(end_point)
-	raycast.target_position = end_point
-	raycast.force_raycast_update()
+	beam_directions.clear()
+	var beam_count := beam_rays.size()
+	var spread_angle := deg_to_rad(float(weapon_instance.definition.get("spread_angle_degrees")))
+	var start_offset := -float(beam_count - 1) * 0.5
+	for index in range(beam_count):
+		var direction := beam_direction.normalized().rotated(
+			(start_offset + float(index)) * spread_angle
+		)
+		var end_point := direction * get_range()
+		beam_directions.append(direction)
+		_update_laser_visual_for(beam_lines[index], end_point)
+		beam_rays[index].target_position = end_point
+		beam_rays[index].force_raycast_update()
 
 
 func _update_laser_visual(end_point: Vector2) -> void:
-	laser_line.clear_points()
-	laser_line.add_point(Vector2.ZERO)
-	laser_line.add_point(end_point)
+	_update_laser_visual_for(laser_line, end_point)
 
 
-func _damage_current_raycast_target() -> void:
-	raycast.force_raycast_update()
-	if not raycast.is_colliding():
-		return
+func _update_laser_visual_for(line: Line2D, end_point: Vector2) -> void:
+	line.clear_points()
+	line.add_point(Vector2.ZERO)
+	line.add_point(end_point)
 
-	var collider := raycast.get_collider()
-	var enemy := _resolve_enemy_from_collider(collider)
-	if enemy == null or not enemy.has_method("take_damage"):
-		return
 
-	enemy.call("take_damage", get_damage(), beam_direction, raycast.get_collision_point())
+func _damage_current_raycast_targets() -> void:
+	var damaged_enemy_ids := {}
+	for index in range(beam_rays.size()):
+		_damage_enemies_in_beam(
+			beam_rays[index],
+			beam_directions[index],
+			damaged_enemy_ids
+		)
+
+
+func _damage_enemies_in_beam(
+	beam_ray: RayCast2D,
+	direction: Vector2,
+	damaged_enemy_ids: Dictionary
+) -> void:
+	var beam_range := get_range()
+	var query_shape := RectangleShape2D.new()
+	query_shape.size = Vector2(beam_range, weapon_instance.get_beam_width())
+
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = query_shape
+	query.transform = Transform2D(
+		direction.angle(),
+		global_position + direction * beam_range * 0.5
+	)
+	query.collision_mask = beam_ray.collision_mask
+	query.collide_with_areas = beam_ray.collide_with_areas
+	query.collide_with_bodies = beam_ray.collide_with_bodies
+	query.exclude = _get_owner_collision_rids()
+
+	var max_results := int(weapon_instance.definition.get("max_collision_results"))
+	var hits := get_world_2d().direct_space_state.intersect_shape(query, max_results)
+	var candidate_enemies: Array[Node2D] = []
+	var candidate_ids := {}
+	for hit in hits:
+		var enemy := _resolve_enemy_from_collider(hit.get("collider")) as Node2D
+		if enemy == null:
+			continue
+
+		var enemy_id := enemy.get_instance_id()
+		if candidate_ids.has(enemy_id) or damaged_enemy_ids.has(enemy_id):
+			continue
+
+		candidate_ids[enemy_id] = true
+		candidate_enemies.append(enemy)
+
+	candidate_enemies.sort_custom(func(left: Node2D, right: Node2D) -> bool:
+		return global_position.distance_squared_to(left.global_position) \
+			< global_position.distance_squared_to(right.global_position)
+	)
+
+	var max_targets := int(weapon_instance.definition.get("pierce_count"))
+	for enemy in candidate_enemies:
+		if max_targets > 0 and damaged_enemy_ids.size() >= max_targets:
+			break
+
+		var enemy_id := enemy.get_instance_id()
+		damaged_enemy_ids[enemy_id] = true
+		enemy.call("take_damage", get_damage(), direction, enemy.global_position)
+
+
+func _get_owner_collision_rids() -> Array[RID]:
+	var excluded_rids: Array[RID] = []
+	var owner_node := get_owner_node()
+	if owner_node == null:
+		return excluded_rids
+
+	if owner_node is CollisionObject2D:
+		excluded_rids.append((owner_node as CollisionObject2D).get_rid())
+	for child in owner_node.get_children():
+		if child is CollisionObject2D:
+			excluded_rids.append((child as CollisionObject2D).get_rid())
+
+	return excluded_rids
+
+
+func _update_beam_color() -> void:
+	var definition: Resource = weapon_instance.definition
+	var start_color: Color = definition.get("beam_start_color")
+	var end_color: Color = definition.get("beam_end_color")
+	var color_max_level := int(definition.get("beam_color_max_level"))
+	if color_max_level <= 0:
+		color_max_level = int(definition.get("max_level"))
+
+	var color_progress := 1.0
+	if color_max_level > 1:
+		color_progress = clampf(
+			float(weapon_instance.level - 1) / float(color_max_level - 1),
+			0.0,
+			1.0
+		)
+	var current_color := start_color.lerp(end_color, color_progress)
+	for line in beam_lines:
+		line.default_color = current_color
+
+
+func _ensure_beam_channels(required_count: int) -> void:
+	while beam_rays.size() < required_count:
+		var new_ray := raycast.duplicate() as RayCast2D
+		var new_line := laser_line.duplicate() as Line2D
+		add_child(new_ray)
+		add_child(new_line)
+		beam_rays.append(new_ray)
+		beam_lines.append(new_line)
+
+		var owner_node := get_owner_node()
+		if owner_node is CollisionObject2D:
+			new_ray.add_exception(owner_node)
+
+	while beam_rays.size() > required_count:
+		beam_rays.pop_back().queue_free()
+		beam_lines.pop_back().queue_free()
+
+
+func _set_beams_visible(is_visible: bool) -> void:
+	for line in beam_lines:
+		line.visible = is_visible
 
 
 func _resolve_enemy_from_collider(collider: Object) -> Node:

@@ -18,3 +18,4 @@ max_level = 5
 damage_per_level = 2.0
 cooldown_reduction_per_level = 0.02
 spread_angle_degrees = 8.0
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.projectile_speed"])

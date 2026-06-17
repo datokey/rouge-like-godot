@@ -15,14 +15,17 @@ enum RewardCategory {
 @export var id := ""
 @export var display_name := "Ability"
 @export_multiline var description := ""
-@export_enum("Safe", "Offense", "Defense", "Mobility") var category := "Safe"
+@export_enum("Safe", "Risky", "Weird", "Offense", "Defense", "Mobility") var category := "Safe"
 @export_enum("Common", "Uncommon", "Rare", "Epic", "Legendary") var rarity := "Common"
+@export var archetype := ""
 @export var trigger := "level_up"
 @export var icon: Texture2D
+@export var enabled := true
 @export var stackable := true
 @export var max_stack := 0
 @export var reward_category: RewardCategory = RewardCategory.AUTO
 @export var weight := 1.0
+@export var eligibility_rules: Array[Resource] = []
 @export var effects: Array[Resource] = []
 @export var weapon_definition: Resource
 @export var skill_definition: Resource
@@ -47,6 +50,7 @@ func get_upgrade_data() -> Dictionary:
 		"description": description,
 		"category": category,
 		"rarity": rarity,
+		"archetype": archetype,
 		"trigger": trigger,
 		"icon": icon,
 		"stackable": stackable,
@@ -59,6 +63,19 @@ func get_upgrade_data() -> Dictionary:
 		"target_weapon_id": get_target_weapon_id(),
 		"target_skill_id": get_target_skill_id(),
 	}
+
+
+func is_eligible(context: Dictionary) -> bool:
+	if not enabled:
+		return false
+
+	for rule in eligibility_rules:
+		if rule == null or not rule.has_method("is_satisfied"):
+			return false
+		if rule.call("is_satisfied", context) != true:
+			return false
+
+	return true
 
 
 func get_effects() -> Array[Resource]:
@@ -104,6 +121,16 @@ func get_target_skill_id() -> String:
 	return target_skill_id
 
 
+func get_weapon_modifier_keys() -> Array[StringName]:
+	var modifier_keys: Array[StringName] = []
+	for effect in get_effects():
+		var modifier_key := _get_effect_modifier_key(effect)
+		if String(modifier_key).begins_with("weapon.") and not modifier_keys.has(modifier_key):
+			modifier_keys.append(modifier_key)
+
+	return modifier_keys
+
+
 func get_weight() -> float:
 	return maxf(0.0, weight)
 
@@ -115,7 +142,10 @@ func get_reward_category(context: Dictionary = {}) -> int:
 	if is_weapon_reward():
 		var weapon_id := get_weapon_id()
 		var owned_weapon_levels: Dictionary = context.get("owned_weapon_levels", {})
-		if not weapon_id.is_empty() and owned_weapon_levels.has(weapon_id):
+		var owned_weapon_ids: Array = context.get("owned_weapon_ids", [])
+		if not weapon_id.is_empty() and (
+			owned_weapon_levels.has(weapon_id) or owned_weapon_ids.has(weapon_id)
+		):
 			return RewardCategory.WEAPON_UPGRADE
 
 		return RewardCategory.WEAPON_NEW

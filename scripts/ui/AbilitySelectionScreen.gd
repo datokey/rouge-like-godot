@@ -99,6 +99,8 @@ func _get_offer_context() -> Dictionary:
 
 
 func _apply_local_selection_context(context: Dictionary) -> void:
+	context["player_level"] = current_level
+	context["selected_reward_counts"] = taken_ability_counts.duplicate(true)
 	var selected_reward_ids: Array = context.get("selected_reward_ids", [])
 	for ability_id in taken_non_stackable_ids:
 		if not selected_reward_ids.has(ability_id):

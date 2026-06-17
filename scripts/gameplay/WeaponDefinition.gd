@@ -17,6 +17,11 @@ enum WeaponType {
 
 @export var weapon_type: WeaponType = WeaponType.PROJECTILE
 @export var weapon_scene: PackedScene
+@export var supported_modifier_keys: Array[StringName] = [
+	&"weapon.damage",
+	&"weapon.cooldown",
+	&"weapon.range",
+]
 
 @export var base_damage: float = 10.0
 @export var base_cooldown: float = 1.0
