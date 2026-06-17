@@ -1,10 +1,10 @@
 extends Node2D
 class_name WeaponBase
 
-var weapon_instance: RefCounted
+var weapon_instance: WeaponInstance
 
 
-func setup(new_weapon_instance: RefCounted) -> void:
+func setup(new_weapon_instance: WeaponInstance) -> void:
 	weapon_instance = new_weapon_instance
 	_on_weapon_setup()
 

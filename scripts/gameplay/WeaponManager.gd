@@ -1,11 +1,9 @@
 extends RefCounted
 class_name WeaponManager
 
-const WeaponInstanceScript = preload("res://scripts/gameplay/WeaponInstance.gd")
-
 var max_weapon_slots := 4
-var weapons: Array[RefCounted] = []
-var weapon_nodes := {}
+var weapons: Array[WeaponInstance] = []
+var weapon_nodes: Dictionary[String, WeaponBase] = {}
 var owner_node: Node2D
 var weapon_holder: Node
 var ability_manager
@@ -30,7 +28,7 @@ func add_weapon(weapon_definition: Resource) -> bool:
 	if not can_add_weapon():
 		return false
 
-	var weapon_instance := WeaponInstanceScript.new()
+	var weapon_instance := WeaponInstance.new()
 	weapon_instance.setup(weapon_definition, owner_node, ability_manager)
 	if not _spawn_weapon_node(weapon_instance):
 		return false
@@ -70,7 +68,7 @@ func can_offer_weapon(weapon_definition: Resource) -> bool:
 	return can_add_weapon()
 
 
-func get_weapon_instance(weapon_id: String) -> RefCounted:
+func get_weapon_instance(weapon_id: String) -> WeaponInstance:
 	for weapon_instance in weapons:
 		if weapon_instance.get_weapon_id() == weapon_id:
 			return weapon_instance
@@ -104,7 +102,7 @@ func get_offer_context() -> Dictionary:
 	}
 
 
-func _spawn_weapon_node(weapon_instance: RefCounted) -> bool:
+func _spawn_weapon_node(weapon_instance: WeaponInstance) -> bool:
 	if weapon_instance.definition == null or weapon_holder == null:
 		return false
 
@@ -112,14 +110,14 @@ func _spawn_weapon_node(weapon_instance: RefCounted) -> bool:
 	if weapon_scene == null:
 		return false
 
-	var weapon_node := weapon_scene.instantiate()
+	var instantiated_node := weapon_scene.instantiate()
+	var weapon_node := instantiated_node as WeaponBase
 	if weapon_node == null:
+		instantiated_node.free()
 		return false
 
 	weapon_holder.add_child(weapon_node)
 	weapon_nodes[weapon_instance.get_weapon_id()] = weapon_node
-
-	if weapon_node.has_method("setup"):
-		weapon_node.call("setup", weapon_instance)
+	weapon_node.setup(weapon_instance)
 
 	return true

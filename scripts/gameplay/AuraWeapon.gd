@@ -9,8 +9,7 @@ var _current_aura_radius := -1.0
 
 
 func _on_weapon_setup() -> void:
-	if _get_aura_definition() != null:
-		_sync_aura_radius()
+	_sync_aura_radius()
 		
 	# Trigger the first tick immediately
 	_tick_timer = 0.0
@@ -20,9 +19,6 @@ func _on_weapon_setup() -> void:
 func _physics_process(delta: float) -> void:
 	var owner_node := get_owner_node()
 	if owner_node == null:
-		return
-
-	if _get_aura_definition() == null:
 		return
 
 	# Aura follows the player
@@ -55,23 +51,10 @@ func _apply_aura_effects() -> void:
 			)
 
 func _draw() -> void:
-	var def: AuraWeaponDefinition = _get_aura_definition()
-	if def == null:
-		return
-		
 	# Draw a translucent circle
 	var aura_radius: float = weapon_instance.get_aura_radius()
 	draw_circle(Vector2.ZERO, aura_radius, Color(0.2, 0.6, 1.0, 0.3))
 	draw_arc(Vector2.ZERO, aura_radius, 0, TAU, 32, Color(0.2, 0.6, 1.0, 0.8), 2.0)
-
-
-func _get_aura_definition() -> AuraWeaponDefinition:
-	if weapon_instance == null:
-		return null
-	var def: Resource = weapon_instance.definition
-	if def is AuraWeaponDefinition:
-		return def as AuraWeaponDefinition
-	return null
 
 
 func _get_tick_damage() -> int:

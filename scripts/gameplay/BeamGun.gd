@@ -1,4 +1,4 @@
-extends "res://scripts/gameplay/weapons/WeaponBase.gd"
+extends WeaponBase
 class_name BeamGun
 
 @export var laser_color := Color(0.35, 0.9, 1.0, 0.9)
@@ -6,9 +6,10 @@ class_name BeamGun
 @onready var raycast: RayCast2D = $RayCast2D
 @onready var laser_line: Line2D = $Line2D
 
-var cooldown_timer := 0.0
-var beam_remaining := 0.0
+var cooldown_elapsed := INF
+var beam_elapsed := 0.0
 var damage_tick_timer := 0.0
+var is_beam_active := false
 var current_target: Node2D
 var beam_direction := Vector2.RIGHT
 var beam_rays: Array[RayCast2D] = []
@@ -27,9 +28,10 @@ func _ready() -> void:
 
 
 func _on_weapon_setup() -> void:
-	cooldown_timer = 0.0
-	beam_remaining = 0.0
+	cooldown_elapsed = INF
+	beam_elapsed = 0.0
 	damage_tick_timer = 0.0
+	is_beam_active = false
 	_update_laser_visual(Vector2.ZERO)
 
 	var owner_node := get_owner_node()
@@ -44,16 +46,16 @@ func _physics_process(delta: float) -> void:
 
 	global_position = owner_node.global_position
 
-	if beam_remaining > 0.0:
+	if is_beam_active:
 		_update_active_beam(delta)
 		return
 
-	laser_line.visible = false
-	cooldown_timer = maxf(cooldown_timer - delta, 0.0)
-	if cooldown_timer > 0.0:
+	_set_beams_visible(false)
+	cooldown_elapsed += delta
+	if cooldown_elapsed < get_cooldown():
 		return
 
-	var target := _get_target()
+	var target := get_nearest_enemy()
 	if target == null:
 		return
 
@@ -63,37 +65,39 @@ func _physics_process(delta: float) -> void:
 func _start_beam(target: Node2D) -> void:
 	current_target = target
 	_ensure_beam_channels(weapon_instance.get_projectile_count())
-	_update_beam_color()
-	beam_remaining = weapon_instance.get_beam_duration()
+	beam_elapsed = 0.0
 	damage_tick_timer = 0.0
-	for line in beam_lines:
-		line.visible = true
-		line.width = weapon_instance.get_beam_width()
+	is_beam_active = true
+	_sync_beam_visuals()
 	_update_beam_direction()
 	_damage_current_raycast_targets()
 
 
 func _update_active_beam(delta: float) -> void:
-	beam_remaining = maxf(beam_remaining - delta, 0.0)
+	beam_elapsed += delta
+	if beam_elapsed >= weapon_instance.get_beam_duration():
+		_finish_beam()
+		return
+
+	_ensure_beam_channels(weapon_instance.get_projectile_count())
+	_sync_beam_visuals()
 	_update_beam_direction()
 
 	damage_tick_timer -= delta
-	while damage_tick_timer <= 0.0 and beam_remaining > 0.0:
+	while damage_tick_timer <= 0.0 and is_beam_active:
 		_damage_current_raycast_targets()
 		damage_tick_timer += weapon_instance.get_beam_tick_interval()
 
-	if beam_remaining <= 0.0:
-		_set_beams_visible(false)
-		cooldown_timer = get_cooldown()
 
-
-func _get_target() -> Node2D:
-	return get_nearest_enemy()
+func _finish_beam() -> void:
+	is_beam_active = false
+	_set_beams_visible(false)
+	cooldown_elapsed = 0.0
 
 
 func _update_beam_direction() -> void:
 	if current_target == null or not is_instance_valid(current_target):
-		current_target = _get_target()
+		current_target = get_nearest_enemy()
 
 	if current_target != null:
 		beam_direction = global_position.direction_to(current_target.global_position)
@@ -103,7 +107,7 @@ func _update_beam_direction() -> void:
 
 	beam_directions.clear()
 	var beam_count := beam_rays.size()
-	var spread_angle := deg_to_rad(float(weapon_instance.definition.get("spread_angle_degrees")))
+	var spread_angle := deg_to_rad(weapon_instance.get_spread_angle_degrees())
 	var start_offset := -float(beam_count - 1) * 0.5
 	for index in range(beam_count):
 		var direction := beam_direction.normalized().rotated(
@@ -156,7 +160,7 @@ func _damage_enemies_in_beam(
 	query.collide_with_bodies = beam_ray.collide_with_bodies
 	query.exclude = _get_owner_collision_rids()
 
-	var max_results := int(weapon_instance.definition.get("max_collision_results"))
+	var max_results := weapon_instance.get_beam_max_collision_results()
 	var hits := get_world_2d().direct_space_state.intersect_shape(query, max_results)
 	var candidate_enemies: Array[Node2D] = []
 	var candidate_ids := {}
@@ -177,7 +181,7 @@ func _damage_enemies_in_beam(
 			< global_position.distance_squared_to(right.global_position)
 	)
 
-	var max_targets := int(weapon_instance.definition.get("pierce_count"))
+	var max_targets := weapon_instance.get_beam_pierce_count()
 	for enemy in candidate_enemies:
 		if max_targets > 0 and damaged_enemy_ids.size() >= max_targets:
 			break
@@ -202,23 +206,12 @@ func _get_owner_collision_rids() -> Array[RID]:
 	return excluded_rids
 
 
-func _update_beam_color() -> void:
-	var definition: Resource = weapon_instance.definition
-	var start_color: Color = definition.get("beam_start_color")
-	var end_color: Color = definition.get("beam_end_color")
-	var color_max_level := int(definition.get("beam_color_max_level"))
-	if color_max_level <= 0:
-		color_max_level = int(definition.get("max_level"))
-
-	var color_progress := 1.0
-	if color_max_level > 1:
-		color_progress = clampf(
-			float(weapon_instance.level - 1) / float(color_max_level - 1),
-			0.0,
-			1.0
-		)
-	var current_color := start_color.lerp(end_color, color_progress)
+func _sync_beam_visuals() -> void:
+	var current_color := weapon_instance.get_beam_color()
+	var current_width := weapon_instance.get_beam_width()
 	for line in beam_lines:
+		line.visible = true
+		line.width = current_width
 		line.default_color = current_color
 
 

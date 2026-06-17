@@ -1,35 +1,46 @@
-extends "res://scripts/gameplay/weapons/WeaponBase.gd"
+extends WeaponBase
 class_name KoalisiDadakan
 
 # Weapon tipe SUMMON — memanggil minion Simpatisan secara berkala.
 # Semua value dikonfigurasi lewat SummonWeaponDefinition resource.
 
-var _summon_timer := 0.0
+var _summon_elapsed := INF
 var _active_minions: Array[Node] = []
+var _player_is_dead := false
 
 
 func _on_weapon_setup() -> void:
 	# Langsung summon minion pertama saat weapon diaktifkan.
-	_summon_timer = 0.0
+	_free_active_minions()
+	_player_is_dead = false
+	_summon_elapsed = INF
+	var event_bus := get_node_or_null("/root/EventBus")
+	var death_callback := Callable(self, "_on_player_died")
+	if event_bus != null and not event_bus.is_connected("player_died", death_callback):
+		event_bus.connect("player_died", death_callback)
 
 
 func _physics_process(delta: float) -> void:
-	if get_owner_node() == null:
+	if _player_is_dead:
+		return
+
+	var player_node := get_owner_node()
+	if not is_instance_valid(player_node):
+		_free_active_minions()
 		return
 
 	_cleanup_dead_minions()
 
-	var max_minions: int = _get_max_active_minions()
+	var max_minions := weapon_instance.get_summon_max_active()
 	if _active_minions.size() >= max_minions:
 		# Slot penuh — tunggu sampai ada minion yang hilang.
 		return
 
-	_summon_timer = maxf(_summon_timer - delta, 0.0)
-	if _summon_timer > 0.0:
+	_summon_elapsed += delta
+	if _summon_elapsed < weapon_instance.get_summon_cooldown():
 		return
 
 	_summon_minion()
-	_summon_timer = get_cooldown()
 
 
 func _cleanup_dead_minions() -> void:
@@ -42,16 +53,11 @@ func _cleanup_dead_minions() -> void:
 
 
 func _summon_minion() -> void:
-	var def: SummonWeaponDefinition = _get_summon_definition()
-	if def == null:
-		return
-
-	var minion_scene: PackedScene = def.minion_scene
+	var minion_scene := weapon_instance.get_summon_minion_scene()
 	if minion_scene == null:
 		return
 
-	var projectile_scene: PackedScene = def.minion_projectile_scene
-	if projectile_scene == null:
+	if weapon_instance.get_summon_projectile_scene() == null:
 		return
 
 	var player_node := get_owner_node()
@@ -71,47 +77,40 @@ func _summon_minion() -> void:
 	scene_root.add_child(minion)
 	minion.global_position = player_node.global_position
 
-	if minion.has_method("setup"):
-		minion.call(
-			"setup",
-			player_node,
-			_get_minion_damage(),
-			get_range(),
-			def.minion_attack_cooldown,
-			def.minion_projectile_speed,
-			def.minion_lifetime,
-			_active_minions.size(),    # orbit_index
-			def.minion_orbit_radius,
-			projectile_scene
-		)
+	if not minion.has_method("setup"):
+		minion.queue_free()
+		return
+
+	minion.call(
+		"setup",
+		weapon_instance,
+		weapon_instance.get_summon_lifetime(),
+		_active_minions.size()
+	)
 
 	_active_minions.append(minion)
+	minion.tree_exited.connect(_on_minion_tree_exited.bind(minion), CONNECT_ONE_SHOT)
+	_summon_elapsed = 0.0
 
 
-# ── Helpers untuk baca data dari SummonWeaponDefinition ──────────────────────
+# Lifecycle registry summon.
 
-func _get_summon_definition() -> SummonWeaponDefinition:
-	if weapon_instance == null:
-		return null
-	var def: Resource = weapon_instance.definition
-	if def is SummonWeaponDefinition:
-		return def as SummonWeaponDefinition
-	return null
+func _on_minion_tree_exited(minion: Node) -> void:
+	_active_minions.erase(minion)
 
 
-func _get_max_active_minions() -> int:
-	var def: SummonWeaponDefinition = _get_summon_definition()
-	if def == null:
-		return 1
-	return def.max_active_minions
+func _on_player_died() -> void:
+	_player_is_dead = true
+	_free_active_minions()
 
 
-func _get_minion_damage() -> int:
-	# Damage minion = damage weapon (yang sudah dikalkulasi level + ability modifier)
-	# dikali minion_damage_multiplier.
-	var base_damage: float = float(get_damage())
-	var def: SummonWeaponDefinition = _get_summon_definition()
-	var multiplier := 0.7
-	if def != null:
-		multiplier = def.minion_damage_multiplier
-	return maxi(1, roundi(base_damage * multiplier))
+func _free_active_minions() -> void:
+	var minions := _active_minions.duplicate()
+	_active_minions.clear()
+	for minion in minions:
+		if is_instance_valid(minion):
+			minion.queue_free()
+
+
+func _exit_tree() -> void:
+	_free_active_minions()

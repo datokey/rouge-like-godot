@@ -1,4 +1,4 @@
-extends "res://scripts/gameplay/weapons/WeaponBase.gd"
+extends WeaponBase
 class_name BasicGun
 
 @export var projectile_scene: PackedScene
@@ -35,7 +35,7 @@ func _shoot_projectiles(target: Node2D) -> void:
 
 	var projectile_count: int = weapon_instance.get_projectile_count()
 	var base_direction: Vector2 = owner_node.global_position.direction_to(target.global_position)
-	var spread_step := deg_to_rad(_get_spread_angle_degrees())
+	var spread_step := deg_to_rad(weapon_instance.get_spread_angle_degrees())
 	var start_offset := -float(projectile_count - 1) * 0.5
 
 	for index in range(projectile_count):
@@ -52,14 +52,3 @@ func _shoot_projectiles(target: Node2D) -> void:
 			get_damage(),
 			weapon_instance.get_projectile_speed()
 		)
-
-
-func _get_spread_angle_degrees() -> float:
-	if weapon_instance == null or weapon_instance.definition == null:
-		return 8.0
-
-	var value: Variant = weapon_instance.definition.get("spread_angle_degrees")
-	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
-		return float(value)
-
-	return 8.0
