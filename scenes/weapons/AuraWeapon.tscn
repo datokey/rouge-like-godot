@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/gameplay/AuraWeapon.gd" id="1_aura_weapon"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_aura"]
+radius = 150.0
+
+[node name="AuraWeapon" type="Node2D"]
+script = ExtResource("1_aura_weapon")
+
+[node name="Hitbox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+shape = SubResource("CircleShape2D_aura")

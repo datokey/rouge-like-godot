@@ -20,6 +20,8 @@ var contact_damage_bonus := 0
 var hp_multiplier := 1.0
 var contact_damage_multiplier := 1.0
 var move_speed_multiplier := 1.0
+var slow_multiplier := 1.0
+var slow_timer := 0.0
 var knockback_remaining := 0.0
 var knockback_velocity := Vector2.ZERO
 var hit_flash_remaining := 0.0
@@ -45,6 +47,11 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_hit_flash(delta)
+
+	if slow_timer > 0.0:
+		slow_timer -= delta
+		if slow_timer <= 0.0:
+			slow_multiplier = 1.0
 
 	if GameState.mode != GameState.GameMode.RUNNING:
 		velocity = Vector2.ZERO
@@ -164,7 +171,14 @@ func get_max_hp() -> int:
 
 
 func get_move_speed() -> float:
-	return maxf(0.0, config.move_speed * move_speed_multiplier)
+	return maxf(0.0, config.move_speed * move_speed_multiplier * slow_multiplier)
+
+
+func apply_slow(percent: float, duration: float) -> void:
+	var mult = 1.0 - percent
+	if slow_timer <= 0.0 or mult < slow_multiplier:
+		slow_multiplier = mult
+	slow_timer = maxf(slow_timer, duration)
 
 
 func get_contact_damage() -> int:

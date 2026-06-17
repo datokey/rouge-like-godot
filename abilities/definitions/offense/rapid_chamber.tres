@@ -1,14 +1,13 @@
-[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="AbilityDefinition" format=3 uid="uid://buubcn75ufquf"]
 
-[ext_resource type="Script" path="res://abilities/scripts/AbilityDefinition.gd" id="1_ability_definition"]
-[ext_resource type="Script" path="res://abilities/scripts/AbilityEffect.gd" id="2_ability_effect"]
+[ext_resource type="Script" uid="uid://be8ks7l6v0ev2" path="res://abilities/scripts/AbilityDefinition.gd" id="1_ability_definition"]
+[ext_resource type="Script" uid="uid://cmfaen2140xrb" path="res://abilities/scripts/AbilityEffect.gd" id="2_ability_effect"]
 
 [sub_resource type="Resource" id="AbilityEffect_rapid_chamber"]
 script = ExtResource("2_ability_effect")
 target = 1
 effect_type = 1
 value = 25.0
-stack_mode = 0
 
 [resource]
 script = ExtResource("1_ability_definition")
@@ -17,7 +16,4 @@ display_name = "Rapid Chamber"
 description = "Menaikkan attack speed cukup besar."
 category = "Offense"
 rarity = "Rare"
-trigger = "level_up"
-stackable = true
-max_stack = 0
 effects = Array[Resource]([SubResource("AbilityEffect_rapid_chamber")])
