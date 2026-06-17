@@ -32,8 +32,10 @@ func add_weapon(weapon_definition: Resource) -> bool:
 
 	var weapon_instance := WeaponInstanceScript.new()
 	weapon_instance.setup(weapon_definition, owner_node, ability_manager)
+	if not _spawn_weapon_node(weapon_instance):
+		return false
+
 	weapons.append(weapon_instance)
-	_spawn_weapon_node(weapon_instance)
 	return true
 
 
@@ -91,17 +93,22 @@ func get_offer_context() -> Dictionary:
 	}
 
 
-func _spawn_weapon_node(weapon_instance: RefCounted) -> void:
+func _spawn_weapon_node(weapon_instance: RefCounted) -> bool:
 	if weapon_instance.definition == null or weapon_holder == null:
-		return
+		return false
 
 	var weapon_scene: PackedScene = weapon_instance.definition.get("weapon_scene")
 	if weapon_scene == null:
-		return
+		return false
 
 	var weapon_node := weapon_scene.instantiate()
+	if weapon_node == null:
+		return false
+
 	weapon_holder.add_child(weapon_node)
 	weapon_nodes[weapon_instance.get_weapon_id()] = weapon_node
 
 	if weapon_node.has_method("setup"):
 		weapon_node.call("setup", weapon_instance)
+
+	return true
