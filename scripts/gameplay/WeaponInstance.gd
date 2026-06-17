@@ -67,6 +67,39 @@ func get_attack_range() -> float:
 	return maxf(0.0, _apply_modifiers(_get_float("base_range", 300.0), &"weapon.range"))
 
 
+func get_aura_radius() -> float:
+	var base_radius := _get_float("aura_radius", _get_float("base_range", 0.0))
+	var radius_per_level := _get_float("aura_radius_per_level", 0.0)
+	var radius := base_radius + radius_per_level * float(level - 1)
+	return maxf(0.0, _apply_modifiers(radius, &"weapon.range"))
+
+
+func get_aura_tick_interval() -> float:
+	var base_interval := _get_float("tick_interval", _get_float("base_cooldown", 1.0))
+	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
+	var interval := maxf(0.05, base_interval - reduction)
+	return maxf(0.05, _apply_modifiers(interval, &"weapon.cooldown"))
+
+
+func get_aura_tick_damage_multiplier() -> float:
+	return maxf(0.0, _get_float("tick_damage_multiplier", 1.0))
+
+
+func get_aura_slow_percent() -> float:
+	return clampf(_get_float("slow_percent", 0.0), 0.0, 1.0)
+
+
+func get_aura_slow_duration() -> float:
+	return maxf(0.0, _get_float("slow_duration", 0.0))
+
+
+func is_aura_knockback_enabled() -> bool:
+	if definition == null:
+		return false
+
+	return bool(definition.get("enable_knockback"))
+
+
 func get_beam_duration() -> float:
 	var base_duration := _get_float("beam_duration", 1.2)
 	var duration_per_level := _get_float("beam_duration_per_level", 0.0)
