@@ -14,7 +14,7 @@ func setup(new_weapon_instance: RefCounted) -> void:
 	var def: AuraWeaponDefinition = _get_aura_definition()
 	if def != null and collision_shape != null:
 		var circle: CircleShape2D = CircleShape2D.new()
-		circle.radius = def.aura_radius
+		circle.radius = _get_aura_radius(def)
 		collision_shape.shape = circle
 		
 	# Trigger the first tick immediately
@@ -59,8 +59,9 @@ func _draw() -> void:
 		return
 		
 	# Draw a translucent circle
-	draw_circle(Vector2.ZERO, def.aura_radius, Color(0.2, 0.6, 1.0, 0.3))
-	draw_arc(Vector2.ZERO, def.aura_radius, 0, TAU, 32, Color(0.2, 0.6, 1.0, 0.8), 2.0)
+	var aura_radius := _get_aura_radius(def)
+	draw_circle(Vector2.ZERO, aura_radius, Color(0.2, 0.6, 1.0, 0.3))
+	draw_arc(Vector2.ZERO, aura_radius, 0, TAU, 32, Color(0.2, 0.6, 1.0, 0.8), 2.0)
 
 func _get_aura_definition() -> AuraWeaponDefinition:
 	if weapon_instance == null:
@@ -75,3 +76,10 @@ func _get_tick_damage(def: AuraWeaponDefinition) -> int:
 		return 1
 	var base_damage: float = float(weapon_instance.get_damage())
 	return maxi(1, roundi(base_damage * def.tick_damage_multiplier))
+
+
+func _get_aura_radius(def: AuraWeaponDefinition) -> float:
+	if weapon_instance == null:
+		return maxf(0.0, def.aura_radius)
+
+	return maxf(0.0, def.aura_radius + def.aura_radius_per_level * float(weapon_instance.level - 1))

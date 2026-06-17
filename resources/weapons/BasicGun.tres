@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="WeaponDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="ProjectileWeaponDefinition" load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scripts/gameplay/WeaponDefinition.gd" id="1_weapon_definition"]
+[ext_resource type="Script" path="res://scripts/gameplay/ProjectileWeaponDefinition.gd" id="1_weapon_definition"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/BasicGun.tscn" id="2_basic_gun_scene"]
 
 [resource]
@@ -17,3 +17,4 @@ base_range = 520.0
 max_level = 5
 damage_per_level = 2.0
 cooldown_reduction_per_level = 0.02
+spread_angle_degrees = 8.0
