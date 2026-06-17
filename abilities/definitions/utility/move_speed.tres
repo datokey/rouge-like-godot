@@ -5,8 +5,9 @@
 
 [sub_resource type="Resource" id="AbilityEffect_move_speed"]
 script = ExtResource("2_ability_effect")
-effect_type = 4
-value = 10.0
+modifier_key = &"player.move_speed"
+value = 0.1
+value_type = 1
 
 [resource]
 script = ExtResource("1_ability_definition")

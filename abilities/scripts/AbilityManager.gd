@@ -1,13 +1,11 @@
 extends RefCounted
 class_name AbilityManager
 
-const TARGET_PLAYER := 0
-const TARGET_WEAPON := 1
-const EFFECT_DAMAGE_PERCENT := 0
-const EFFECT_ATTACK_SPEED_PERCENT := 1
-const EFFECT_MAX_HP_FLAT := 2
-const EFFECT_PROJECTILE_COUNT_FLAT := 3
-const EFFECT_MOVE_SPEED_PERCENT := 4
+const KEY_WEAPON_DAMAGE := &"weapon.damage"
+const KEY_WEAPON_COOLDOWN := &"weapon.cooldown"
+const KEY_WEAPON_PROJECTILE_COUNT := &"weapon.projectile_count"
+const KEY_PLAYER_MAX_HP := &"player.max_hp"
+const KEY_PLAYER_MOVE_SPEED := &"player.move_speed"
 
 var modifier_config: AbilityModifierConfig
 var ability_stacks := {}
@@ -49,34 +47,17 @@ func get_stack_count(ability_id: String) -> int:
 	return int(ability_stacks.get(ability_id, 0))
 
 
-func get_flat_modifier(target: int, effect_type: int) -> float:
-	var total := 0.0
-	for effect_data in active_effects:
-		if int(effect_data.get("target", -1)) != target:
-			continue
-		if int(effect_data.get("effect_type", -1)) != effect_type:
-			continue
-		if bool(effect_data.get("is_percent", false)):
-			continue
-
-		total += float(effect_data.get("value", 0.0))
-
-	return total
+func get_flat_modifier(modifier_key: StringName) -> float:
+	return _get_modifier_value(modifier_key, AbilityEffect.ValueType.FLAT)
 
 
-func get_percent_modifier(target: int, effect_type: int) -> float:
-	var total := 0.0
-	for effect_data in active_effects:
-		if int(effect_data.get("target", -1)) != target:
-			continue
-		if int(effect_data.get("effect_type", -1)) != effect_type:
-			continue
-		if not bool(effect_data.get("is_percent", false)):
-			continue
+func get_percent_modifier(modifier_key: StringName) -> float:
+	return _get_modifier_value(modifier_key, AbilityEffect.ValueType.PERCENT)
 
-		total += float(effect_data.get("value", 0.0))
 
-	return total
+func apply_modifiers(base_value: float, modifier_key: StringName) -> float:
+	var with_flat := base_value + get_flat_modifier(modifier_key)
+	return with_flat * (1.0 + get_percent_modifier(modifier_key))
 
 
 func get_active_effects() -> Array[Dictionary]:
@@ -84,23 +65,23 @@ func get_active_effects() -> Array[Dictionary]:
 
 
 func get_weapon_damage_percent_modifier() -> float:
-	return get_percent_modifier(TARGET_WEAPON, EFFECT_DAMAGE_PERCENT)
+	return get_percent_modifier(KEY_WEAPON_DAMAGE)
 
 
 func get_weapon_attack_speed_percent_modifier() -> float:
-	return get_percent_modifier(TARGET_WEAPON, EFFECT_ATTACK_SPEED_PERCENT)
+	return -get_percent_modifier(KEY_WEAPON_COOLDOWN)
 
 
 func get_weapon_projectile_count_modifier() -> float:
-	return get_flat_modifier(TARGET_WEAPON, EFFECT_PROJECTILE_COUNT_FLAT)
+	return get_flat_modifier(KEY_WEAPON_PROJECTILE_COUNT)
 
 
 func get_player_max_hp_modifier() -> float:
-	return get_flat_modifier(TARGET_PLAYER, EFFECT_MAX_HP_FLAT)
+	return get_flat_modifier(KEY_PLAYER_MAX_HP)
 
 
 func get_player_move_speed_percent_modifier() -> float:
-	return get_percent_modifier(TARGET_PLAYER, EFFECT_MOVE_SPEED_PERCENT)
+	return get_percent_modifier(KEY_PLAYER_MOVE_SPEED)
 
 
 func _add_active_effects(ability: Resource, ability_id: String, rarity: int) -> void:
@@ -109,15 +90,46 @@ func _add_active_effects(ability: Resource, ability_id: String, rarity: int) -> 
 		if not effect is Resource:
 			continue
 
-		var final_value := _get_effect_final_value(effect as Resource, rarity)
+		var effect_resource := effect as Resource
+		var final_value := _get_effect_final_value(effect_resource, rarity)
 		active_effects.append({
 			"ability_id": ability_id,
-			"target": int(effect.get("target")),
-			"effect_type": int(effect.get("effect_type")),
+			"modifier_key": _get_effect_modifier_key(effect_resource),
 			"value": final_value,
-			"stack_mode": int(effect.get("stack_mode")),
-			"is_percent": _is_percent_effect(effect as Resource),
+			"value_type": _get_effect_value_type(effect_resource),
+			"stack_mode": _get_effect_stack_mode(effect_resource),
 		})
+
+
+func _get_modifier_value(modifier_key: StringName, value_type: int) -> float:
+	var add_total := 0.0
+	var multiply_scale := 1.0
+	var override_value := 0.0
+	var has_override := false
+
+	for effect_data in active_effects:
+		if effect_data.get("modifier_key") != modifier_key:
+			continue
+		if int(effect_data.get("value_type", AbilityEffect.ValueType.FLAT)) != value_type:
+			continue
+
+		var effect_value := float(effect_data.get("value", 0.0))
+		match int(effect_data.get("stack_mode", AbilityEffect.StackMode.ADD)):
+			AbilityEffect.StackMode.MULTIPLY:
+				multiply_scale *= 1.0 + effect_value
+			AbilityEffect.StackMode.OVERRIDE:
+				override_value = effect_value
+				has_override = true
+			_:
+				add_total += effect_value
+
+	var total := add_total * multiply_scale
+	if value_type == AbilityEffect.ValueType.PERCENT:
+		total = (1.0 + add_total) * multiply_scale - 1.0
+	if has_override:
+		total = override_value
+
+	return total
 
 
 func _get_effect_final_value(effect: Resource, rarity: int) -> float:
@@ -131,9 +143,36 @@ func _get_effect_final_value(effect: Resource, rarity: int) -> float:
 	return 0.0
 
 
-func _is_percent_effect(effect: Resource) -> bool:
-	if not effect.has_method("is_percent_effect"):
-		return false
+func _get_effect_modifier_key(effect: Resource) -> StringName:
+	if effect.has_method("get_modifier_key"):
+		return effect.call("get_modifier_key")
 
-	var is_percent = effect.call("is_percent_effect")
-	return is_percent == true
+	var value: Variant = effect.get("modifier_key")
+	if typeof(value) == TYPE_STRING_NAME:
+		return value
+	if typeof(value) == TYPE_STRING:
+		return StringName(value)
+
+	return &""
+
+
+func _get_effect_value_type(effect: Resource) -> int:
+	if effect.has_method("get_value_type"):
+		return int(effect.call("get_value_type"))
+
+	var value: Variant = effect.get("value_type")
+	if typeof(value) == TYPE_INT:
+		return int(value)
+
+	return AbilityEffect.ValueType.FLAT
+
+
+func _get_effect_stack_mode(effect: Resource) -> int:
+	if effect.has_method("get_stack_mode"):
+		return int(effect.call("get_stack_mode"))
+
+	var value: Variant = effect.get("stack_mode")
+	if typeof(value) == TYPE_INT:
+		return int(value)
+
+	return AbilityEffect.StackMode.ADD

@@ -5,8 +5,9 @@
 
 [sub_resource type="Resource" id="AbilityEffect_sharp_bullet"]
 script = ExtResource("2_ability_effect")
-target = 1
-value = 10.0
+modifier_key = &"weapon.damage"
+value = 0.1
+value_type = 1
 
 [resource]
 script = ExtResource("1_ability_definition")

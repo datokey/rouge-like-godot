@@ -18,10 +18,10 @@ func get_upgrade_data() -> Dictionary:
 	var effect_data: Array[Dictionary] = []
 	for effect in get_effects():
 		effect_data.append({
-			"target": int(effect.get("target")),
-			"effect_type": int(effect.get("effect_type")),
+			"modifier_key": _get_effect_modifier_key(effect),
 			"value": _get_effect_data_value(effect),
-			"stack_mode": int(effect.get("stack_mode")),
+			"value_type": _get_effect_value_type(effect),
+			"stack_mode": _get_effect_stack_mode(effect),
 		})
 
 	return {
@@ -157,6 +157,41 @@ func _get_effect_data_value(effect: Resource) -> float:
 			return float(data_value)
 
 	return 0.0
+
+
+func _get_effect_modifier_key(effect: Resource) -> StringName:
+	if effect.has_method("get_modifier_key"):
+		return effect.call("get_modifier_key")
+
+	var value: Variant = effect.get("modifier_key")
+	if typeof(value) == TYPE_STRING_NAME:
+		return value
+	if typeof(value) == TYPE_STRING:
+		return StringName(value)
+
+	return &""
+
+
+func _get_effect_value_type(effect: Resource) -> int:
+	if effect.has_method("get_value_type"):
+		return int(effect.call("get_value_type"))
+
+	var value: Variant = effect.get("value_type")
+	if typeof(value) == TYPE_INT:
+		return int(value)
+
+	return AbilityEffect.ValueType.FLAT
+
+
+func _get_effect_stack_mode(effect: Resource) -> int:
+	if effect.has_method("get_stack_mode"):
+		return int(effect.call("get_stack_mode"))
+
+	var value: Variant = effect.get("stack_mode")
+	if typeof(value) == TYPE_INT:
+		return int(value)
+
+	return AbilityEffect.StackMode.ADD
 
 
 func _get_first_effect() -> Resource:

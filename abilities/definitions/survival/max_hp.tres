@@ -5,7 +5,7 @@
 
 [sub_resource type="Resource" id="AbilityEffect_max_hp"]
 script = ExtResource("2_ability_effect")
-effect_type = 2
+modifier_key = &"player.max_hp"
 value = 5.0
 
 [resource]

@@ -5,8 +5,7 @@
 
 [sub_resource type="Resource" id="AbilityEffect_double_tap"]
 script = ExtResource("2_ability_effect")
-target = 1
-effect_type = 3
+modifier_key = &"weapon.projectile_count"
 value = 1.0
 
 [resource]
