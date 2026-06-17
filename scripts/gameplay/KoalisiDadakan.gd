@@ -1,23 +1,20 @@
-extends Node2D
+extends "res://scripts/gameplay/weapons/WeaponBase.gd"
 class_name KoalisiDadakan
 
 # Weapon tipe SUMMON — memanggil minion Simpatisan secara berkala.
 # Semua value dikonfigurasi lewat SummonWeaponDefinition resource.
 
-var weapon_instance: RefCounted
-
 var _summon_timer := 0.0
 var _active_minions: Array[Node] = []
 
 
-func setup(new_weapon_instance: RefCounted) -> void:
-	weapon_instance = new_weapon_instance
+func _on_weapon_setup() -> void:
 	# Langsung summon minion pertama saat weapon diaktifkan.
 	_summon_timer = 0.0
 
 
 func _physics_process(delta: float) -> void:
-	if weapon_instance == null or weapon_instance.owner_node == null:
+	if get_owner_node() == null:
 		return
 
 	_cleanup_dead_minions()
@@ -32,7 +29,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_summon_minion()
-	_summon_timer = _get_summon_interval()
+	_summon_timer = get_cooldown()
 
 
 func _cleanup_dead_minions() -> void:
@@ -57,7 +54,10 @@ func _summon_minion() -> void:
 	if projectile_scene == null:
 		return
 
-	var player_node: Node2D = weapon_instance.owner_node
+	var player_node := get_owner_node()
+	if player_node == null:
+		return
+
 	var minion: Node2D = minion_scene.instantiate() as Node2D
 	if minion == null:
 		return
@@ -76,7 +76,7 @@ func _summon_minion() -> void:
 			"setup",
 			player_node,
 			_get_minion_damage(),
-			def.minion_attack_range,
+			get_range(),
 			def.minion_attack_cooldown,
 			def.minion_projectile_speed,
 			def.minion_lifetime,
@@ -106,19 +106,10 @@ func _get_max_active_minions() -> int:
 	return def.max_active_minions
 
 
-func _get_summon_interval() -> float:
-	var def: SummonWeaponDefinition = _get_summon_definition()
-	if def == null:
-		return 10.0
-	return maxf(def.summon_interval, 0.1)
-
-
 func _get_minion_damage() -> int:
-	if weapon_instance == null:
-		return 1
 	# Damage minion = damage weapon (yang sudah dikalkulasi level + ability modifier)
 	# dikali minion_damage_multiplier.
-	var base_damage: float = float(weapon_instance.get_damage())
+	var base_damage: float = float(get_damage())
 	var def: SummonWeaponDefinition = _get_summon_definition()
 	var multiplier := 0.7
 	if def != null:

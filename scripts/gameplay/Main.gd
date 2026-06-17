@@ -2,8 +2,6 @@ extends Node2D
 
 const DEFAULT_STARTING_WEAPONS: Array[Resource] = [
 	preload("res://resources/weapons/BasicGun.tres"),
-	preload("res://resources/weapons/RapidGun.tres"),
-	preload("res://resources/weapons/ScatterGun.tres"),
 	preload("res://resources/weapons/BeamGun.tres"),
 ]
 const WEAPON_RESOURCE_FOLDER := "res://resources/weapons"
@@ -33,13 +31,22 @@ func _on_starting_weapon_selected(weapon_definition: Resource) -> void:
 
 
 func _get_starting_weapon_options() -> Array[Resource]:
-	var options := starting_weapon_options
+	var options := _filter_valid_weapon_definitions(starting_weapon_options)
 	if options.is_empty():
 		options = _load_all_weapon_resources()
 	if options.is_empty():
-		options = DEFAULT_STARTING_WEAPONS
+		options = _filter_valid_weapon_definitions(DEFAULT_STARTING_WEAPONS)
 
 	return options
+
+
+func _filter_valid_weapon_definitions(resources: Array[Resource]) -> Array[Resource]:
+	var valid_resources: Array[Resource] = []
+	for resource in resources:
+		if _is_valid_weapon_definition(resource):
+			valid_resources.append(resource)
+
+	return valid_resources
 
 
 func _load_all_weapon_resources() -> Array[Resource]:

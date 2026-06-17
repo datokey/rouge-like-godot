@@ -1,4 +1,4 @@
-extends Node2D
+extends "res://scripts/gameplay/weapons/WeaponBase.gd"
 class_name BeamGun
 
 @export var laser_color := Color(0.35, 0.9, 1.0, 0.9)
@@ -6,7 +6,6 @@ class_name BeamGun
 @onready var raycast: RayCast2D = $RayCast2D
 @onready var laser_line: Line2D = $Line2D
 
-var weapon_instance: RefCounted
 var cooldown_timer := 0.0
 var beam_remaining := 0.0
 var damage_tick_timer := 0.0
@@ -22,22 +21,23 @@ func _ready() -> void:
 	raycast.collide_with_bodies = true
 
 
-func setup(new_weapon_instance: RefCounted) -> void:
-	weapon_instance = new_weapon_instance
+func _on_weapon_setup() -> void:
 	cooldown_timer = 0.0
 	beam_remaining = 0.0
 	damage_tick_timer = 0.0
 	_update_laser_visual(Vector2.ZERO)
 
-	if weapon_instance != null and weapon_instance.owner_node is CollisionObject2D:
-		raycast.add_exception(weapon_instance.owner_node)
+	var owner_node := get_owner_node()
+	if owner_node is CollisionObject2D:
+		raycast.add_exception(owner_node)
 
 
 func _physics_process(delta: float) -> void:
-	if weapon_instance == null or weapon_instance.owner_node == null:
+	var owner_node := get_owner_node()
+	if owner_node == null:
 		return
 
-	global_position = weapon_instance.owner_node.global_position
+	global_position = owner_node.global_position
 
 	if beam_remaining > 0.0:
 		_update_active_beam(delta)
@@ -76,15 +76,11 @@ func _update_active_beam(delta: float) -> void:
 
 	if beam_remaining <= 0.0:
 		laser_line.visible = false
-		cooldown_timer = weapon_instance.get_cooldown()
+		cooldown_timer = get_cooldown()
 
 
 func _get_target() -> Node2D:
-	var owner_node: Node2D = weapon_instance.owner_node
-	if owner_node.has_method("get_nearest_enemy_in_range"):
-		return owner_node.call("get_nearest_enemy_in_range", weapon_instance.get_attack_range()) as Node2D
-
-	return null
+	return get_nearest_enemy()
 
 
 func _update_beam_direction() -> void:
@@ -97,7 +93,7 @@ func _update_beam_direction() -> void:
 	if beam_direction.length_squared() <= 0.0:
 		beam_direction = Vector2.RIGHT
 
-	var end_point: Vector2 = beam_direction.normalized() * weapon_instance.get_attack_range()
+	var end_point: Vector2 = beam_direction.normalized() * get_range()
 	_update_laser_visual(end_point)
 	raycast.target_position = end_point
 	raycast.force_raycast_update()
@@ -119,7 +115,7 @@ func _damage_current_raycast_target() -> void:
 	if enemy == null or not enemy.has_method("take_damage"):
 		return
 
-	enemy.call("take_damage", weapon_instance.get_damage(), beam_direction, raycast.get_collision_point())
+	enemy.call("take_damage", get_damage(), beam_direction, raycast.get_collision_point())
 
 
 func _resolve_enemy_from_collider(collider: Object) -> Node:

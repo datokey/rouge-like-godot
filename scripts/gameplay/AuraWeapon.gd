@@ -1,28 +1,26 @@
-extends Node2D
+extends "res://scripts/gameplay/weapons/WeaponBase.gd"
 class_name AuraWeapon
 
-var weapon_instance: RefCounted
-
 var _tick_timer := 0.0
+var _current_aura_radius := -1.0
 
 @onready var hitbox: Area2D = $Hitbox
 @onready var collision_shape: CollisionShape2D = $Hitbox/CollisionShape2D
 
-func setup(new_weapon_instance: RefCounted) -> void:
-	weapon_instance = new_weapon_instance
-	
+
+func _on_weapon_setup() -> void:
 	var def: AuraWeaponDefinition = _get_aura_definition()
-	if def != null and collision_shape != null:
-		var circle: CircleShape2D = CircleShape2D.new()
-		circle.radius = _get_aura_radius(def)
-		collision_shape.shape = circle
+	if def != null:
+		_sync_aura_radius(def)
 		
 	# Trigger the first tick immediately
 	_tick_timer = 0.0
 	queue_redraw()
 
+
 func _physics_process(delta: float) -> void:
-	if weapon_instance == null or weapon_instance.owner_node == null:
+	var owner_node := get_owner_node()
+	if owner_node == null:
 		return
 
 	var def: AuraWeaponDefinition = _get_aura_definition()
@@ -30,12 +28,14 @@ func _physics_process(delta: float) -> void:
 		return
 
 	# Aura follows the player
-	global_position = weapon_instance.owner_node.global_position
+	global_position = owner_node.global_position
+	_sync_aura_radius(def)
 
 	_tick_timer = maxf(_tick_timer - delta, 0.0)
 	if _tick_timer <= 0.0:
 		_apply_aura_effects(def)
-		_tick_timer = maxf(def.tick_interval, 0.1)
+		_tick_timer = maxf(get_cooldown(), 0.1)
+
 
 func _apply_aura_effects(def: AuraWeaponDefinition) -> void:
 	var bodies: Array[Node2D] = hitbox.get_overlapping_bodies()
@@ -63,6 +63,7 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, aura_radius, Color(0.2, 0.6, 1.0, 0.3))
 	draw_arc(Vector2.ZERO, aura_radius, 0, TAU, 32, Color(0.2, 0.6, 1.0, 0.8), 2.0)
 
+
 func _get_aura_definition() -> AuraWeaponDefinition:
 	if weapon_instance == null:
 		return null
@@ -71,10 +72,9 @@ func _get_aura_definition() -> AuraWeaponDefinition:
 		return def as AuraWeaponDefinition
 	return null
 
+
 func _get_tick_damage(def: AuraWeaponDefinition) -> int:
-	if weapon_instance == null:
-		return 1
-	var base_damage: float = float(weapon_instance.get_damage())
+	var base_damage: float = float(get_damage())
 	return maxi(1, roundi(base_damage * def.tick_damage_multiplier))
 
 
@@ -82,4 +82,22 @@ func _get_aura_radius(def: AuraWeaponDefinition) -> float:
 	if weapon_instance == null:
 		return maxf(0.0, def.aura_radius)
 
-	return maxf(0.0, def.aura_radius + def.aura_radius_per_level * float(weapon_instance.level - 1))
+	return maxf(0.0, get_range() + def.aura_radius_per_level * float(weapon_instance.level - 1))
+
+
+func _sync_aura_radius(def: AuraWeaponDefinition) -> void:
+	if collision_shape == null:
+		return
+
+	var aura_radius := _get_aura_radius(def)
+	if is_equal_approx(aura_radius, _current_aura_radius):
+		return
+
+	var circle: CircleShape2D = collision_shape.shape as CircleShape2D
+	if circle == null:
+		circle = CircleShape2D.new()
+		collision_shape.shape = circle
+
+	circle.radius = aura_radius
+	_current_aura_radius = aura_radius
+	queue_redraw()

@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="WeaponConfig" load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://scripts/gameplay/WeaponConfig.gd" id="1_weapon_config"]
-
-[resource]
-script = ExtResource("1_weapon_config")
-damage = 10
-attack_interval = 0.25
-attack_range = 520.0

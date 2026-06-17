@@ -28,6 +28,10 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
   Scene dunia/arena seperti `TestArena` dan `EnemySpawner`.
 - `scripts/gameplay/`
   Logic gameplay utama.
+- `scripts/gameplay/weapons/`
+  Base script weapon modular, seperti `WeaponBase.gd`.
+- `scripts/gameplay/pickups/`
+  Resource effect pickup, seperti `HealPickupEffect`, `AddXpPickupEffect`, dan utility pickup effect.
 - `scripts/ui/`
   Logic UI seperti HUD dan game over screen.
 - `autoload/`
@@ -68,12 +72,14 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
   Config Runner: HP menengah, movement speed paling tinggi, contact damage configurable, jumlah roll XP 1-2, weighted XP/HP drop khusus, dan peluang drop HP di atas enemy normal.
 - `resources/actors/enemy_tank.tres`
   Config Tank: HP, movement speed lambat, contact damage besar, jumlah roll XP 2-3, weighted XP/HP drop khusus, dan peluang drop HP lebih tinggi.
-- `resources/weapons/basic_weapon.tres`
-  Resource senjata lama untuk kompatibilitas prototype awal.
 - `resources/weapons/BasicGun.tres`
-  Contoh weapon `PROJECTILE` yang memakai scene `BasicGun.tscn`.
+  Contoh weapon `PROJECTILE` yang memakai `ProjectileWeaponDefinition`, scene `BasicGun.tscn`, dan runtime script `BasicGun.gd` berbasis `WeaponBase`.
 - `resources/weapons/BeamGun.tres`
-  Contoh weapon `BEAM` yang memakai `RayCast2D` untuk hit detection dan `Line2D` untuk visual laser.
+  Contoh weapon `BEAM` yang memakai `BeamWeaponDefinition`, `RayCast2D` untuk hit detection, dan `Line2D` untuk visual laser.
+- `resources/weapons/AuraWeapon.tres`
+  Contoh weapon `AURA` yang memakai `AuraWeaponDefinition`.
+- `resources/weapons/KoalisiDadakan.tres`
+  Contoh weapon `SUMMON` yang memakai `SummonWeaponDefinition`.
 - `resources/abilities/default_ability_modifiers.tres`
   Default nilai modifier ability dan multiplier rarity.
 - `resources/abilities/default_ability_pool.tres`
@@ -91,15 +97,15 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - `resources/run/default_run_config.tres`
   Target survival timer dan `next_scene_path` untuk persiapan pindah scene setelah menang.
 - `resources/items/health_pickup.tres`
-  Pickup HP default/fallback dengan jenis `hp`; jumlah heal drop enemy diisi dari weighted HP drop `EnemyConfig`.
+  Pickup HP berbasis `PickupConfig.effects`; jumlah heal drop enemy diisi dari weighted HP drop `EnemyConfig`.
 - `resources/items/runner_health_pickup.tres`
   Pickup HP dummy khusus Runner; jumlah heal final tetap diisi dari weighted HP drop `EnemyConfig`.
 - `resources/items/tank_health_pickup.tres`
   Pickup HP dummy khusus Tank; jumlah heal final tetap diisi dari weighted HP drop `EnemyConfig`.
 - `resources/items/xp_pickup.tres`
-  Pickup XP dengan jenis `xp` dan jumlah XP default.
+  Pickup XP berbasis `AddXpPickupEffect` dan jumlah XP default.
 - `resources/items/magnet_pickup.tres`
-  Pickup Magnet dengan jenis `magnet`.
+  Pickup Magnet berbasis `ActivateUtilityPickupEffect`.
 - `resources/items/magnet_default.tres`
   Durasi, radius, pull speed, dan batch size efek Magnet.
 - `resources/xp/default_xp.tres`
@@ -109,16 +115,16 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 
 1. `Main` memanggil `RunManager.start_run()` saat scene dibuka/reload.
 2. `RunManager` reset run, mengisi seed, dan mulai menghitung survival timer.
-3. `PlayerController` membaca `PlayerConfig`, `WeaponConfig`, dan `XPConfig`, lalu mengisi HP awal ke `GameState`.
+3. `PlayerController` membaca `PlayerConfig`, `XPConfig`, dan ability modifier config, lalu mengisi HP awal ke `GameState`.
 4. `EnemySpawner` membaca `SpawnerConfig` untuk area spawn dan `DifficultyManager` untuk scaling difficulty.
 5. `DifficultyManager` menghitung progress dari `GameState.run_elapsed_time / GameState.run_target_time`.
 6. `EnemySpawner` memilih enemy dari phase aktif, lalu memberi multiplier HP, damage, dan move speed ke enemy yang baru di-spawn.
 7. `EnemyController` membaca `EnemyConfig` sebagai base stat, lalu memakai multiplier runtime dari Difficulty Manager.
-8. `WeaponManager` men-spawn weapon aktif dari `WeaponDefinition` yang dipilih player.
+8. `WeaponManager` membuat `WeaponInstance`, men-spawn `WeaponDefinition.weapon_scene`, lalu memanggil `setup(weapon_instance)` pada node weapon.
 9. Weapon aktif mencari target dan memberi damage sesuai logic scene masing-masing.
 10. `Projectile` atau weapon lain memanggil `take_damage()` pada enemy yang terkena.
 11. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
-12. `PickupItem` menerapkan efek ke player, misalnya `heal()` untuk HP atau `add_xp()` untuk XP.
+12. `PickupItem` menjalankan semua `PickupEffect` di `PickupConfig.effects`, misalnya `HealPickupEffect`, `AddXpPickupEffect`, atau `ActivateUtilityPickupEffect`.
 13. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
 14. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
 15. Player menerapkan ability terpilih, lalu game berjalan kembali.
@@ -134,22 +140,21 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Jumlah XP gem yang keluar diatur lewat `EnemyConfig.xp_drop_rolls_min` dan `EnemyConfig.xp_drop_rolls_max`; Runner default memakai 1-2 roll dan Tank default memakai 2-3 roll.
 - Weighted HP pickup diatur di `EnemyConfig` lewat `hp_drop_values` dan `hp_drop_weights`; peluang drop HP memakai `health_drop_chance`.
 - Rarity/chance drop Magnet diatur lewat `EnemyConfig.magnet_drop_chance`.
-- Efek Magnet hanya menarik pickup `hp` dan `xp`; durasi, radius, pull speed, dan batch activation diatur lewat `MagnetConfig`.
+- Efek Magnet hanya menarik pickup dengan `PickupConfig.magnetizable = true`; durasi, radius, pull speed, timer, dan batch activation diatur lewat `MagnetComponent` dengan data `MagnetConfig`.
 - Detour pathfinding enemy diatur lewat `EnemyConfig`: `detour_path_enabled`, `detour_obstacle_collision_mask`, `detour_refresh_interval`, `detour_waypoint_margin`, dan `detour_waypoint_reached_distance`.
 - Simple obstacle avoidance enemy tetap menjadi fallback dan diatur lewat `EnemyConfig`: `obstacle_avoidance_enabled`, `obstacle_avoidance_duration`, `obstacle_avoidance_weight`, `obstacle_stuck_time`, dan `obstacle_stuck_min_distance`.
-- Base damage senjata player ada di `WeaponConfig.damage`; upgrade damage persen bisa memakai `add_damage_percent_modifier()` atau `apply_ability_modifier()`.
+- Base damage senjata player ada di `WeaponDefinition.base_damage`; upgrade damage runtime dibaca dari `AbilityManager` lewat key modifier seperti `weapon.damage`.
 - Upgrade level up berbasis data `AbilityDefinition`: `id`, `display_name`, `description`, `category`, `rarity`, `trigger`, `icon`, `stackable`, `max_stack`, dan `effects`.
-- Setiap item di `AbilityDefinition.effects` berisi resource `AbilityEffect` yang menyimpan enum `target`, enum `effect_type`, `value`, dan enum `stack_mode`; satu ability bisa punya banyak effect.
-- `AbilityManager` menyimpan ability yang sudah dipilih player, menghitung stack/max stack, mengumpulkan `active_effects`, lalu menyediakan `get_flat_modifier()` dan `get_percent_modifier()`.
+- Setiap item di `AbilityDefinition.effects` berisi resource `AbilityEffect` dengan `modifier_key`, `value`, `value_type`, dan `stack_mode`; satu ability bisa punya banyak effect.
+- `AbilityManager` menyimpan ability yang sudah dipilih player, menghitung stack/max stack, mengumpulkan `active_effects`, lalu menyediakan `get_flat_modifier(modifier_key)`, `get_percent_modifier(modifier_key)`, dan `apply_modifiers(base_value, modifier_key)`.
 - Weapon/player stat membaca modifier runtime dari `AbilityManager`, bukan langsung dari resource ability.
-- Menambah upgrade baru cukup membuat resource `AbilityDefinition`, mengisi satu atau lebih `AbilityEffect`, lalu memasukkannya ke `default_ability_pool.tres`; UI level up dan logic level up tidak perlu diubah.
+- Menambah upgrade stat baru cukup membuat resource `AbilityDefinition`, mengisi satu atau lebih `AbilityEffect` dengan `modifier_key`, lalu memasukkannya ke `default_ability_pool.tres`; UI level up dan logic level up tidak perlu diubah.
 - `AbilityPoolConfig.roll_offers()` memilih upgrade dari pool, sedangkan `AbilitySelectionScreen` hanya merender data upgrade yang diterima.
-- Ability modifier player bisa memakai `apply_ability_modifier(modifier_type, base_value, rarity)`.
-- Default ability modifier: damage `+5%`, attack speed `+15%`, dan max HP `+5`.
-- Modifier tambahan tersedia untuk projectile count `+1` flat dan movement speed `+10%`.
-- Rarity multiplier diatur di `AbilityModifierConfig`; contoh damage `20%` rarity Epic menghasilkan `20% * 1.5 = 30%`.
+- Modifier percent memakai pecahan desimal: `0.20` berarti `+20%`, dan `-0.15` berarti pengurangan `15%`.
+- Key modifier yang sudah dipakai antara lain `weapon.damage`, `weapon.cooldown`, `weapon.range`, `weapon.projectile_count`, `weapon.projectile_speed`, `weapon.beam_duration`, `player.max_hp`, dan `player.move_speed`.
+- Rarity multiplier diatur di `AbilityModifierConfig`; contoh damage `0.20` rarity Epic menghasilkan `0.20 * 1.5 = 0.30`.
 - Ability baru bisa dibuat sebagai resource `AbilityDefinition`, lalu dimasukkan ke `default_ability_pool.tres`.
-- Attack speed player memakai `WeaponConfig.attack_interval`; upgrade attack speed bisa memanggil `add_attack_speed_modifier()` untuk menambah attack speed berbasis persen.
+- Cooldown weapon memakai `WeaponDefinition.base_cooldown`; modifier cooldown memakai key `weapon.cooldown` dan nilai percent negatif untuk mempercepat serangan.
 - Base damage enemy ada di `EnemyConfig`; scaling damage runtime sekarang berasal dari `DifficultyManager`.
 - Hit feedback enemy diatur lewat `HitFeedbackConfig`; knockback memakai controlled displacement yang di-clamp, bukan physics force bebas.
 - Difficulty progression mengikuti progress waktu run, bukan wave count.
@@ -168,93 +173,188 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 
 ### Menambahkan Senjata Baru
 
-Sistem weapon sekarang berbasis scene dan resource. Player tidak menembak langsung dari script; `WeaponManager` men-spawn scene weapon dari `WeaponDefinition.weapon_scene`.
+Sistem weapon sekarang berbasis `WeaponDefinition`, `WeaponInstance`, scene weapon, dan `WeaponBase`. `PlayerController` tidak menjalankan detail serangan weapon; player hanya memiliki `WeaponHolder`, lalu `WeaponManager` men-spawn scene dari `WeaponDefinition.weapon_scene` dan memanggil `setup(weapon_instance)`.
 
-1. Buat scene weapon.
+Contoh utama saat ini adalah Basic Gun:
 
-   Contoh lokasi:
+- Script runtime: `res://scripts/gameplay/BasicGun.gd`
+- Base runtime: `res://scripts/gameplay/weapons/WeaponBase.gd`
+- Scene weapon: `res://scenes/weapons/BasicGun.tscn`
+- Resource weapon: `res://resources/weapons/BasicGun.tres`
+- Reward ability: `res://abilities/definitions/weapons/basic_gun_reward.tres`
 
-   - `res://scenes/weapons/MyNewWeapon.tscn`
+#### Struktur file minimal
 
-   Scene ini berisi logic senjata. Kalau masih projectile biasa, bisa reuse `BasicGun.gd`. Kalau behavior berbeda, buat script baru seperti `BeamGun.gd`.
+Untuk weapon baru, buat file berikut:
 
-   Contoh yang sudah ada:
+- Script runtime weapon:
+  `res://scripts/gameplay/weapons/MyNewWeapon.gd`
+- Scene weapon:
+  `res://scenes/weapons/MyNewWeapon.tscn`
+- Resource weapon:
+  `res://resources/weapons/MyNewWeapon.tres`
 
-   - `scenes/weapons/BasicGun.tscn` untuk `PROJECTILE`
-   - `scenes/weapons/BeamGun.tscn` untuk `BEAM`
+Jika weapon dapat diperoleh dari level up, buat juga:
 
-2. Buat resource `WeaponDefinition`.
+- Reward ability:
+  `res://abilities/definitions/weapons/my_new_weapon_reward.tres`
+- Daftarkan reward tersebut ke:
+  `res://abilities/default_ability_pool.tres`
 
-   Contoh lokasi:
+Catatan transisi: `BasicGun.gd`, `BeamGun.gd`, `AuraWeapon.gd`, dan `KoalisiDadakan.gd` saat ini masih berada langsung di `res://scripts/gameplay/`. Untuk weapon baru, gunakan folder `res://scripts/gameplay/weapons/` agar struktur berikutnya lebih rapi.
 
-   - `res://resources/weapons/MyNewWeapon.tres`
+#### Kontrak WeaponBase
 
-   Field penting:
+Weapon runtime baru sebaiknya extend `WeaponBase`:
 
-   - `id`
-   - `display_name`
-   - `description`
-   - `icon`
-   - `weapon_type`
-   - `weapon_scene`
-   - `base_damage`
-   - `base_cooldown`
-   - `base_range`
-   - `max_level`
+```gdscript
+extends "res://scripts/gameplay/weapons/WeaponBase.gd"
+class_name MyNewWeapon
+```
 
-   Field tambahan yang sudah tersedia untuk scaling level:
+`WeaponBase` menyediakan kontrak:
 
-   - `damage_per_level`
-   - `cooldown_reduction_per_level`
-   - `base_projectile_count`
-   - `projectile_count_per_level`
-   - `base_projectile_speed`
-   - `projectile_speed_per_level`
-   - `beam_duration`
-   - `beam_duration_per_level`
-   - `beam_tick_interval`
-   - `beam_tick_interval_reduction_per_level`
-   - `beam_width`
+- `setup(weapon_instance)`
+- `_on_weapon_setup()`
+- `get_owner_node()`
+- `get_damage()`
+- `get_cooldown()`
+- `get_range()`
+- `get_nearest_enemy()`
 
-3. Masukkan ke pilihan starting weapon.
+`setup(weapon_instance)` dipanggil oleh `WeaponManager`, bukan manual dari player. Jika weapon butuh inisialisasi khusus, override `_on_weapon_setup()` seperti BasicGun:
 
-   Tambahkan resource weapon ke `DEFAULT_STARTING_WEAPONS` di `scripts/gameplay/Main.gd`:
+```gdscript
+func _on_weapon_setup() -> void:
+	attack_timer = 0.0
+```
 
-   ```gdscript
-   const DEFAULT_STARTING_WEAPONS: Array[Resource] = [
-	preload("res://resources/weapons/BasicGun.tres"),
-	preload("res://resources/weapons/RapidGun.tres"),
-	preload("res://resources/weapons/ScatterGun.tres"),
-	preload("res://resources/weapons/BeamGun.tres"),
-	preload("res://resources/weapons/MyNewWeapon.tres"),
-   ]
-   ```
+Untuk logic serangan, baca stat lewat helper base atau `weapon_instance`. Contoh pola BasicGun:
 
-4. Masukkan ke reward level up.
+```gdscript
+func _physics_process(delta: float) -> void:
+	if get_owner_node() == null:
+		return
 
-   Buat resource ability reward di:
+	attack_timer = maxf(attack_timer - delta, 0.0)
+	if attack_timer > 0.0:
+		return
 
-   - `res://abilities/definitions/weapons/my_new_weapon_reward.tres`
+	var target := get_nearest_enemy()
+	if target == null:
+		return
 
-   Isi `weapon_definition` dengan resource weapon baru. Contoh:
+	_shoot_projectiles(target)
+	attack_timer = get_cooldown()
+```
 
-   - `abilities/definitions/weapons/basic_gun_reward.tres`
-   - `abilities/definitions/weapons/rapid_gun_reward.tres`
-   - `abilities/definitions/weapons/beam_gun_reward.tres`
+#### Memilih WeaponDefinition
 
-   Setelah itu daftarkan reward tersebut ke:
+Gunakan base `WeaponDefinition` hanya untuk data umum:
 
-   - `abilities/default_ability_pool.tres`
+- `id`
+- `display_name`
+- `description`
+- `icon`
+- `weapon_type`
+- `weapon_scene`
+- `base_damage`
+- `base_cooldown`
+- `base_range`
+- `max_level`
+- `damage_per_level`
+- `cooldown_reduction_per_level`
 
-5. Pilih tipe weapon yang sesuai.
+Field khusus disimpan di subclass definition sesuai tipe weapon:
 
-   - `PROJECTILE`: menembakkan projectile, contoh `BasicGun.gd`.
-   - `AURA`: damage area sekitar player tiap interval.
-   - `AREA`: spawn area damage di posisi tertentu.
-   - `SUMMON`: spawn minion/helper.
-   - `BEAM`: laser garis memakai `RayCast2D` dan `Line2D`, contoh `BeamGun.gd`.
-   - `MELEE`: serangan jarak dekat seperti arc/swing.
+- `ProjectileWeaponDefinition`
+  Untuk projectile count, projectile speed, dan spread. Contoh: `resources/weapons/BasicGun.tres`.
+- `BeamWeaponDefinition`
+  Untuk beam duration, tick interval, width, dan pierce. Contoh: `resources/weapons/BeamGun.tres`.
+- `AuraWeaponDefinition`
+  Untuk aura radius, tick interval, slow, dan knockback. Contoh: `resources/weapons/AuraWeapon.tres`.
+- `SummonWeaponDefinition`
+  Untuk minion scene, lifetime, damage multiplier, dan max active minions. Contoh: `resources/weapons/KoalisiDadakan.tres`.
+- `AreaWeaponDefinition`
+  Disiapkan untuk weapon area damage.
+- `MeleeWeaponDefinition`
+  Disiapkan untuk weapon melee.
 
-   Untuk behavior baru, buat script weapon baru dengan fungsi `setup(weapon_instance)`. Dari `weapon_instance`, weapon bisa membaca damage, cooldown, range, level, dan modifier ability.
+Untuk weapon projectile seperti BasicGun, buat resource dengan script:
 
-  
+- `res://scripts/gameplay/ProjectileWeaponDefinition.gd`
+
+Isi field penting:
+
+- `id = "my_new_weapon"`
+- `display_name = "My New Weapon"`
+- `weapon_type = PROJECTILE`
+- `weapon_scene = res://scenes/weapons/MyNewWeapon.tscn`
+- `base_damage`
+- `base_cooldown`
+- `base_range`
+- `max_level`
+- `damage_per_level`
+- `cooldown_reduction_per_level`
+- `base_projectile_count`
+- `projectile_count_per_level`
+- `base_projectile_speed`
+- `projectile_speed_per_level`
+- `spread_angle_degrees`
+
+#### Menghubungkan resource ke scene
+
+`WeaponManager` hanya tahu resource dan scene. Hubungannya ada di field:
+
+```text
+WeaponDefinition.weapon_scene = res://scenes/weapons/MyNewWeapon.tscn
+```
+
+Saat weapon ditambahkan, `WeaponManager.add_weapon()` akan:
+
+1. Mengecek `weapon_definition.id`.
+2. Jika weapon sudah dimiliki, memanggil `upgrade_weapon()`.
+3. Jika belum dimiliki, mengecek `max_weapon_slots`.
+4. Membuat `WeaponInstance`.
+5. Instantiate `weapon_definition.weapon_scene`.
+6. Menambahkan scene weapon ke `Player/WeaponHolder`.
+7. Memanggil `weapon_node.setup(weapon_instance)`.
+
+Karena itu scene weapon harus punya script dengan method `setup()` dari `WeaponBase`.
+
+#### Starting weapon vs weapon reward
+
+Starting weapon adalah pilihan senjata sebelum run dimulai. `Main.gd` mengambil pilihan dari:
+
+- `starting_weapon_options` jika diisi dari Inspector.
+- Semua resource valid di `res://resources/weapons/` jika `starting_weapon_options` kosong.
+- `DEFAULT_STARTING_WEAPONS` sebagai fallback terakhir.
+
+Artinya, untuk muncul sebagai starting weapon, weapon baru cukup punya resource valid di `res://resources/weapons/` dengan `id` tidak kosong dan `weapon_scene` terisi.
+
+Weapon reward adalah pilihan level up. Ini tidak otomatis hanya karena resource weapon ada di `resources/weapons/`. Untuk muncul sebagai reward level up:
+
+1. Buat `AbilityDefinition` di `res://abilities/definitions/weapons/my_new_weapon_reward.tres`.
+2. Isi `weapon_definition` dengan `res://resources/weapons/MyNewWeapon.tres`.
+3. Isi `id`, `display_name`, `description`, `rarity`, `stackable`, dan `max_stack`.
+4. Masukkan reward tersebut ke `res://abilities/default_ability_pool.tres`.
+
+Jika reward dipilih dan weapon belum dimiliki, `WeaponManager` menambah weapon baru. Jika weapon sudah dimiliki, reward yang sama menaikkan level weapon selama belum mencapai `max_level`. Jika slot weapon penuh, reward weapon baru tidak ditawarkan oleh `AbilityPoolConfig`.
+
+#### Checklist pengujian weapon baru
+
+Setelah menambahkan weapon baru, cek:
+
+- Project bisa load:
+  `godot --headless --path . --quit`
+- Resource weapon muncul di pilihan starting weapon.
+- Memilih weapon saat start menambahkan scene weapon ke `Player/WeaponHolder`.
+- Script weapon menerima `setup(weapon_instance)`.
+- Weapon dapat mencari target tanpa logic serangan di `PlayerController`.
+- Damage berubah sesuai `base_damage` dan `damage_per_level`.
+- Cooldown berubah sesuai `base_cooldown`, `cooldown_reduction_per_level`, dan modifier `weapon.cooldown`.
+- Range memakai `base_range` dan modifier `weapon.range` jika ada.
+- Jika weapon projectile, projectile count, speed, dan spread dibaca dari `ProjectileWeaponDefinition`.
+- Jika reward level up dibuat, reward muncul dari `default_ability_pool.tres`.
+- Memilih reward weapon yang sama menaikkan level, bukan membuat instance duplikat.
+- Saat `max_weapon_slots` penuh, weapon baru tidak ditambahkan.
