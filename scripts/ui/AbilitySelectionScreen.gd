@@ -62,7 +62,7 @@ func _roll_offers() -> Array[Dictionary]:
 		option_buttons.size(),
 		taken_non_stackable_ids,
 		taken_ability_counts,
-		_get_weapon_offer_context()
+		_get_offer_context()
 	)
 	for ability in rolled_abilities:
 		var rarity := ability.get_rarity_value()
@@ -76,14 +76,40 @@ func _roll_offers() -> Array[Dictionary]:
 	return offers
 
 
-func _get_weapon_offer_context() -> Dictionary:
+func _get_offer_context() -> Dictionary:
 	var player := get_tree().get_first_node_in_group("player")
+	if player != null and player.has_method("get_reward_offer_context"):
+		var context = player.call("get_reward_offer_context")
+		if typeof(context) == TYPE_DICTIONARY:
+			_apply_local_selection_context(context)
+			return context
+
 	if player != null and player.has_method("get_weapon_offer_context"):
 		var context = player.call("get_weapon_offer_context")
 		if typeof(context) == TYPE_DICTIONARY:
+			_apply_local_selection_context(context)
 			return context
 
-	return {}
+	var context := {
+		"selected_reward_ids": taken_non_stackable_ids.duplicate(),
+		"modifier_stack_counts": taken_ability_counts.duplicate(true),
+	}
+	_apply_local_selection_context(context)
+	return context
+
+
+func _apply_local_selection_context(context: Dictionary) -> void:
+	var selected_reward_ids: Array = context.get("selected_reward_ids", [])
+	for ability_id in taken_non_stackable_ids:
+		if not selected_reward_ids.has(ability_id):
+			selected_reward_ids.append(ability_id)
+	context["selected_reward_ids"] = selected_reward_ids
+
+	var modifier_stack_counts: Dictionary = context.get("modifier_stack_counts", {})
+	for ability_id in taken_ability_counts.keys():
+		var current_count := int(modifier_stack_counts.get(ability_id, 0))
+		modifier_stack_counts[ability_id] = maxi(current_count, int(taken_ability_counts[ability_id]))
+	context["modifier_stack_counts"] = modifier_stack_counts
 
 
 func _refresh_screen() -> void:
@@ -117,7 +143,7 @@ func _on_option_pressed(index: int) -> void:
 	var ability := offer["ability"] as AbilityDefinition
 	if ability != null:
 		taken_ability_counts[ability.id] = int(taken_ability_counts.get(ability.id, 0)) + 1
-		if not ability.stackable:
+		if not ability.stackable and not taken_non_stackable_ids.has(ability.id):
 			taken_non_stackable_ids.append(ability.id)
 
 	EventBus.ability_selected.emit(offer["ability"], int(offer["rarity"]))

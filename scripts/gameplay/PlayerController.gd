@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 const AbilityManagerScript = preload("res://abilities/scripts/AbilityManager.gd")
 const WeaponManagerScript = preload("res://scripts/gameplay/WeaponManager.gd")
+const SkillManagerScript = preload("res://scripts/gameplay/SkillManager.gd")
 
 # Semua angka balancing player diambil dari resource agar mudah diubah dari editor.
 @export var config: PlayerConfig
@@ -9,9 +10,11 @@ const WeaponManagerScript = preload("res://scripts/gameplay/WeaponManager.gd")
 @export var ability_modifier_config: AbilityModifierConfig
 @export var starting_weapon: Resource
 @export var max_weapon_slots := 4
+@export var max_skill_slots := 0
 
 @onready var pickup_area_collision: CollisionShape2D = $PickupArea/CollisionShape2D
 @onready var weapon_holder: Node2D = $WeaponHolder
+@onready var skill_holder: Node2D = $SkillHolder
 @onready var magnet_component: Node = $MagnetComponent
 
 var current_hp := 0
@@ -29,6 +32,7 @@ var move_speed_percent_modifier := 0.0
 var projectile_count_modifier := 0
 var ability_manager
 var weapon_manager
+var skill_manager
 
 
 func _ready() -> void:
@@ -38,6 +42,9 @@ func _ready() -> void:
 	weapon_manager = WeaponManagerScript.new()
 	weapon_manager.max_weapon_slots = max_weapon_slots
 	weapon_manager.setup(self, weapon_holder, ability_manager)
+	skill_manager = SkillManagerScript.new()
+	skill_manager.max_skill_slots = max_skill_slots
+	skill_manager.setup(self, skill_holder)
 	current_hp = get_max_hp()
 	current_xp = 0
 	current_level = 1
@@ -292,6 +299,11 @@ func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
 		if weapon_manager == null:
 			return false
 		return weapon_manager.add_weapon(weapon_definition)
+	if ability.has_method("is_skill_reward") and ability.call("is_skill_reward") == true:
+		var skill_definition: Resource = ability.get("skill_definition")
+		if skill_manager == null:
+			return false
+		return skill_manager.add_skill(skill_definition)
 
 	var max_hp_before := get_max_hp()
 	var added: bool = ability_manager.add_ability(ability, rarity)
@@ -307,10 +319,34 @@ func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
 
 
 func get_weapon_offer_context() -> Dictionary:
-	if weapon_manager == null:
-		return {}
+	return get_reward_offer_context()
 
-	return weapon_manager.get_offer_context()
+
+func get_reward_offer_context() -> Dictionary:
+	var context := {
+		"owned_skill_ids": [],
+		"owned_skill_levels": {},
+		"owned_skill_max_levels": {},
+		"max_skill_slots": max_skill_slots,
+		"used_skill_slots": 0,
+		"available_skill_slots": max_skill_slots,
+		"can_add_skill": false,
+		"skill_manager_active": false,
+		"selected_reward_ids": [],
+		"modifier_stack_counts": {},
+	}
+
+	if weapon_manager == null:
+		return context
+
+	context.merge(weapon_manager.get_offer_context(), true)
+	if skill_manager != null:
+		context.merge(skill_manager.get_offer_context(), true)
+	if ability_manager != null and ability_manager.has_method("get_ability_stacks"):
+		var stacks: Dictionary = ability_manager.call("get_ability_stacks")
+		context["modifier_stack_counts"] = stacks.duplicate(true)
+
+	return context
 
 
 func equip_starting_weapon(weapon_definition: Resource = null) -> bool:

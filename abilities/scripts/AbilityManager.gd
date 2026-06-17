@@ -47,6 +47,10 @@ func get_stack_count(ability_id: String) -> int:
 	return int(ability_stacks.get(ability_id, 0))
 
 
+func get_ability_stacks() -> Dictionary:
+	return ability_stacks.duplicate(true)
+
+
 func get_flat_modifier(modifier_key: StringName) -> float:
 	return _get_modifier_value(modifier_key, AbilityEffect.ValueType.FLAT)
 

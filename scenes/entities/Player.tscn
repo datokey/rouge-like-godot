@@ -21,6 +21,7 @@ xp_config = ExtResource("5_xp_config")
 ability_modifier_config = ExtResource("6_ability_modifier_config")
 starting_weapon = ExtResource("2_starting_weapon")
 max_weapon_slots = 4
+max_skill_slots = 2
 
 [node name="Visual" type="Polygon2D" parent="."]
 color = Color(0.2, 0.75, 1, 1)
@@ -35,6 +36,8 @@ shape = SubResource("RectangleShape2D_player_body")
 shape = SubResource("CircleShape2D_pickup_area")
 
 [node name="WeaponHolder" type="Node2D" parent="."]
+
+[node name="SkillHolder" type="Node2D" parent="."]
 
 [node name="MagnetComponent" type="Node" parent="."]
 script = ExtResource("8_magnet_component")

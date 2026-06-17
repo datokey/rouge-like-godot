@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://abilities/scripts/AbilityDefinition.gd" id="1_ability_definition"]
+[ext_resource type="Resource" path="res://resources/skills/TrainingPulse.tres" id="2_training_pulse"]
+
+[resource]
+script = ExtResource("1_ability_definition")
+id = "skill_training_pulse"
+display_name = "Training Pulse"
+description = "Tambah Training Pulse, atau naikkan level jika sudah dimiliki."
+category = "Safe"
+rarity = "Common"
+stackable = true
+max_stack = 3
+skill_definition = ExtResource("2_training_pulse")

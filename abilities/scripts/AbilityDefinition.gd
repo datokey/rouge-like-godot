@@ -1,6 +1,17 @@
 extends Resource
 class_name AbilityDefinition
 
+enum RewardCategory {
+	AUTO,
+	WEAPON_NEW,
+	WEAPON_UPGRADE,
+	SKILL_NEW,
+	SKILL_UPGRADE,
+	WEAPON_MODIFIER,
+	SKILL_MODIFIER,
+	GLOBAL_MODIFIER,
+}
+
 @export var id := ""
 @export var display_name := "Ability"
 @export_multiline var description := ""
@@ -10,8 +21,14 @@ class_name AbilityDefinition
 @export var icon: Texture2D
 @export var stackable := true
 @export var max_stack := 0
+@export var reward_category: RewardCategory = RewardCategory.AUTO
+@export var weight := 1.0
 @export var effects: Array[Resource] = []
 @export var weapon_definition: Resource
+@export var skill_definition: Resource
+@export var skill_id := ""
+@export var target_weapon_id := ""
+@export var target_skill_id := ""
 
 
 func get_upgrade_data() -> Dictionary:
@@ -34,8 +51,13 @@ func get_upgrade_data() -> Dictionary:
 		"icon": icon,
 		"stackable": stackable,
 		"max_stack": max_stack,
+		"reward_category": get_reward_category(),
+		"weight": get_weight(),
 		"effects": effect_data,
 		"weapon_id": get_weapon_id(),
+		"skill_id": get_skill_id(),
+		"target_weapon_id": get_target_weapon_id(),
+		"target_skill_id": get_target_skill_id(),
 	}
 
 
@@ -56,11 +78,82 @@ func is_weapon_reward() -> bool:
 	return weapon_definition != null
 
 
+func is_skill_reward() -> bool:
+	return skill_definition != null or not skill_id.is_empty()
+
+
 func get_weapon_id() -> String:
 	if weapon_definition == null:
 		return ""
 
 	return str(weapon_definition.get("id"))
+
+
+func get_skill_id() -> String:
+	if skill_definition != null:
+		return str(skill_definition.get("id"))
+
+	return skill_id
+
+
+func get_target_weapon_id() -> String:
+	return target_weapon_id
+
+
+func get_target_skill_id() -> String:
+	return target_skill_id
+
+
+func get_weight() -> float:
+	return maxf(0.0, weight)
+
+
+func get_reward_category(context: Dictionary = {}) -> int:
+	if reward_category != RewardCategory.AUTO:
+		return reward_category
+
+	if is_weapon_reward():
+		var weapon_id := get_weapon_id()
+		var owned_weapon_levels: Dictionary = context.get("owned_weapon_levels", {})
+		if not weapon_id.is_empty() and owned_weapon_levels.has(weapon_id):
+			return RewardCategory.WEAPON_UPGRADE
+
+		return RewardCategory.WEAPON_NEW
+
+	if is_skill_reward():
+		var resolved_skill_id := get_skill_id()
+		var owned_skill_levels: Dictionary = context.get("owned_skill_levels", {})
+		if owned_skill_levels.has(resolved_skill_id):
+			return RewardCategory.SKILL_UPGRADE
+
+		return RewardCategory.SKILL_NEW
+
+	if _has_modifier_key_prefix("skill.") or not target_skill_id.is_empty():
+		return RewardCategory.SKILL_MODIFIER
+	if _has_modifier_key_prefix("weapon.") or not target_weapon_id.is_empty():
+		return RewardCategory.WEAPON_MODIFIER
+
+	return RewardCategory.GLOBAL_MODIFIER
+
+
+func get_reward_category_name(context: Dictionary = {}) -> String:
+	match get_reward_category(context):
+		RewardCategory.WEAPON_NEW:
+			return "Weapon New"
+		RewardCategory.WEAPON_UPGRADE:
+			return "Weapon Upgrade"
+		RewardCategory.SKILL_NEW:
+			return "Skill New"
+		RewardCategory.SKILL_UPGRADE:
+			return "Skill Upgrade"
+		RewardCategory.WEAPON_MODIFIER:
+			return "Weapon Modifier"
+		RewardCategory.SKILL_MODIFIER:
+			return "Skill Modifier"
+		RewardCategory.GLOBAL_MODIFIER:
+			return "Global Modifier"
+		_:
+			return "Auto"
 
 
 func get_rarity_value() -> int:
@@ -93,6 +186,8 @@ func get_final_value(modifier_config: AbilityModifierConfig, rarity_override: in
 func get_offer_text(modifier_config: AbilityModifierConfig, rarity_override: int = -1) -> String:
 	if is_weapon_reward():
 		return _get_weapon_offer_text()
+	if is_skill_reward():
+		return _get_skill_offer_text()
 
 	var rarity_value := get_rarity_value() if rarity_override < 0 else rarity_override
 	var rarity_name := "Common"
@@ -129,6 +224,26 @@ func _get_weapon_offer_text() -> String:
 		rarity,
 		weapon_name,
 	]
+
+
+func _get_skill_offer_text() -> String:
+	var skill_name := display_name
+	if skill_definition != null:
+		skill_name = str(skill_definition.get("display_name"))
+
+	return "%s | Skill\n%s\nAdd or upgrade skill" % [
+		rarity,
+		skill_name,
+	]
+
+
+func _has_modifier_key_prefix(prefix: String) -> bool:
+	for effect in get_effects():
+		var modifier_key := String(_get_effect_modifier_key(effect))
+		if modifier_key.begins_with(prefix):
+			return true
+
+	return false
 
 
 func apply_to_player(player: Node, modifier_config: AbilityModifierConfig, rarity_override: int = -1) -> float:

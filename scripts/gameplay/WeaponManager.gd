@@ -79,17 +79,23 @@ func get_weapon_instance(weapon_id: String) -> RefCounted:
 
 
 func get_offer_context() -> Dictionary:
+	var owned_weapon_ids: Array[String] = []
 	var owned_levels := {}
 	var owned_max_levels := {}
 	for weapon_instance in weapons:
 		var weapon_id: String = weapon_instance.get_weapon_id()
+		owned_weapon_ids.append(weapon_id)
 		owned_levels[weapon_id] = weapon_instance.level
 		owned_max_levels[weapon_id] = int(weapon_instance.definition.get("max_level"))
 
 	return {
 		"can_add_weapon": can_add_weapon(),
+		"owned_weapon_ids": owned_weapon_ids,
 		"owned_weapon_levels": owned_levels,
 		"owned_weapon_max_levels": owned_max_levels,
+		"max_weapon_slots": max_weapon_slots,
+		"used_weapon_slots": weapons.size(),
+		"available_weapon_slots": maxi(0, max_weapon_slots - weapons.size()),
 	}
 
 
