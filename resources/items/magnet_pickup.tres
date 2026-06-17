@@ -1,11 +1,10 @@
-[gd_resource type="Resource" script_class="PickupConfig" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="PickupConfig" format=3 uid="uid://ca54rob2h05hr"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/PickupConfig.gd" id="1_pickup_config"]
-[ext_resource type="Script" path="res://scripts/gameplay/pickups/ActivateUtilityPickupEffect.gd" id="2_utility_effect"]
+[ext_resource type="Script" uid="uid://dy50sb0jtn5sh" path="res://scripts/gameplay/PickupConfig.gd" id="1_pickup_config"]
+[ext_resource type="Script" uid="uid://q7gcreisacmr" path="res://scripts/gameplay/pickups/ActivateUtilityPickupEffect.gd" id="2_utility_effect"]
 
 [sub_resource type="Resource" id="ActivateUtilityPickupEffect_magnet"]
 script = ExtResource("2_utility_effect")
-method_name = &"activate_magnet"
 
 [resource]
 script = ExtResource("1_pickup_config")

@@ -21,4 +21,4 @@ slow_duration = 1.0
 tick_interval = 0.5
 tick_damage_multiplier = 1.0
 enable_knockback = false
-supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range"])
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.range"])

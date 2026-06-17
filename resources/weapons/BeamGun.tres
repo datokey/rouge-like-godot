@@ -1,31 +1,22 @@
-[gd_resource type="Resource" script_class="BeamWeaponDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="BeamWeaponDefinition" format=3 uid="uid://dnew66iaxgnf0"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/BeamWeaponDefinition.gd" id="1_weapon_definition"]
+[ext_resource type="Script" uid="uid://h787tp5dvcmc" path="res://scripts/gameplay/BeamWeaponDefinition.gd" id="1_weapon_definition"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/BeamGun.tscn" id="2_beam_gun_scene"]
 
 [resource]
 script = ExtResource("1_weapon_definition")
+beam_duration = 1.1
+beam_duration_per_level = 0.12
+beam_tick_interval = 0.18
+beam_color_max_level = 5
 id = "beam_gun"
 display_name = "Beam Gun"
 description = "Mengunci musuh terdekat lalu menyalakan laser yang memberi damage per tick."
 weapon_type = 4
 weapon_scene = ExtResource("2_beam_gun_scene")
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.beam_duration"])
 base_damage = 4.0
 base_cooldown = 1.4
 base_range = 480.0
-max_level = 5
 damage_per_level = 1.0
 cooldown_reduction_per_level = 0.08
-beam_duration = 1.1
-beam_duration_per_level = 0.12
-beam_tick_interval = 0.18
-beam_tick_interval_reduction_per_level = 0.01
-beam_width = 5.0
-pierce_count = 0
-max_collision_results = 256
-base_projectile_count = 1
-spread_angle_degrees = 8.0
-beam_start_color = Color(0.2, 0.65, 1, 0.9)
-beam_end_color = Color(1, 0.15, 0.1, 0.9)
-beam_color_max_level = 5
-supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.beam_duration"])

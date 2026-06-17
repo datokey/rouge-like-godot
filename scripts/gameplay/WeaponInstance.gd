@@ -76,9 +76,7 @@ func get_aura_radius() -> float:
 
 func get_aura_tick_interval() -> float:
 	var base_interval := _get_float("tick_interval", _get_float("base_cooldown", 1.0))
-	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
-	var interval := maxf(0.05, base_interval - reduction)
-	return maxf(0.05, _apply_modifiers(interval, &"weapon.cooldown"))
+	return maxf(0.05, base_interval)
 
 
 func get_aura_tick_damage_multiplier() -> float:
