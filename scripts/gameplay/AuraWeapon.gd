@@ -42,8 +42,7 @@ func _apply_aura_effects() -> void:
 			var knockback_dir := Vector2.ZERO
 			if weapon_instance.is_aura_knockback_enabled():
 				knockback_dir = global_position.direction_to(body.global_position)
-			body.take_damage(damage, knockback_dir, body.global_position)
-			weapon_instance.on_damage_dealt(damage)
+			weapon_instance.apply_damage(body, damage, knockback_dir, body.global_position)
 			
 		if body.has_method("apply_slow"):
 			body.apply_slow(

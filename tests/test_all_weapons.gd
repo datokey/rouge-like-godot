@@ -116,6 +116,31 @@ func _run() -> void:
 	summon._physics_process(0.0)
 	_assert(not summon._active_minions.is_empty(), "KoalisiDadakan tidak membuat minion")
 
+	var active_projectiles := _get_projectiles(scene_root)
+	var active_minions := summon._active_minions.duplicate()
+	var damage_before_death := enemy.damage_events
+	root.get_node("EventBus").emit_signal("player_died")
+	_assert(not manager.is_active, "WeaponManager masih aktif setelah player mati")
+	for definition in WEAPON_DEFINITIONS:
+		var instance := manager.get_weapon_instance(definition.id)
+		var weapon := manager.weapon_nodes.get(definition.id) as WeaponBase
+		_assert(not instance.is_active, "WeaponInstance %s masih aktif" % definition.id)
+		_assert(not weapon.is_weapon_active, "node %s masih aktif" % definition.id)
+		_assert(not weapon.is_physics_processing(), "physics %s masih berjalan" % definition.id)
+	_assert(not beam.laser_line.visible, "visual beam masih aktif setelah player mati")
+	_assert(
+		not manager.get_weapon_instance("beam_gun").apply_damage(
+			enemy, 10, Vector2.RIGHT, enemy.global_position
+		),
+		"damage baru diterima setelah player mati"
+	)
+	await process_frame
+	for projectile in active_projectiles:
+		_assert(not is_instance_valid(projectile), "projectile tersisa setelah player mati")
+	for minion in active_minions:
+		_assert(not is_instance_valid(minion), "summon tersisa setelah player mati")
+	_assert(enemy.damage_events == damage_before_death, "damage terjadi setelah player mati")
+
 	if _failed:
 		quit(1)
 	else:
@@ -124,11 +149,15 @@ func _run() -> void:
 
 
 func _count_projectiles(scene_root: Node) -> int:
-	var count := 0
+	return _get_projectiles(scene_root).size()
+
+
+func _get_projectiles(scene_root: Node) -> Array[Node]:
+	var projectiles: Array[Node] = []
 	for child in scene_root.get_children():
 		if child.get_script() == PROJECTILE_SCRIPT:
-			count += 1
-	return count
+			projectiles.append(child)
+	return projectiles
 
 
 func _assert(condition: bool, message: String) -> void:

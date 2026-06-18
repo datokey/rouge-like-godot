@@ -7,16 +7,33 @@ var weapon_nodes: Dictionary[String, WeaponBase] = {}
 var owner_node: Node2D
 var weapon_holder: Node
 var modifier_manager
+var is_active := true
 
 
 func setup(new_owner_node: Node2D, new_weapon_holder: Node, new_modifier_manager) -> void:
 	owner_node = new_owner_node
 	weapon_holder = new_weapon_holder
 	modifier_manager = new_modifier_manager
+	is_active = true
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	var event_bus := scene_tree.root.get_node_or_null("EventBus") if scene_tree != null else null
+	if event_bus != null and not event_bus.player_died.is_connected(shutdown):
+		event_bus.player_died.connect(shutdown)
+
+
+func shutdown() -> void:
+	if not is_active:
+		return
+	is_active = false
+	for weapon_instance in weapons:
+		weapon_instance.deactivate()
+	for weapon_node in weapon_nodes.values():
+		if is_instance_valid(weapon_node):
+			weapon_node.deactivate()
 
 
 func add_weapon(weapon_definition: Resource) -> bool:
-	if weapon_definition == null:
+	if not is_active or weapon_definition == null:
 		return false
 
 	var weapon_id := str(weapon_definition.get("id"))
@@ -42,6 +59,8 @@ func has_weapon(weapon_id: String) -> bool:
 
 
 func upgrade_weapon(weapon_id: String) -> bool:
+	if not is_active:
+		return false
 	var weapon_instance := get_weapon_instance(weapon_id)
 	if weapon_instance == null:
 		return false
@@ -54,6 +73,8 @@ func apply_stat_upgrade(
 	upgrade: WeaponUpgradeDefinition,
 	rarity_multiplier: float
 ) -> bool:
+	if not is_active:
+		return false
 	var weapon_instance := get_weapon_instance(weapon_id)
 	if weapon_instance == null:
 		return false
@@ -61,7 +82,7 @@ func apply_stat_upgrade(
 
 
 func can_add_weapon() -> bool:
-	return weapons.size() < max_weapon_slots
+	return is_active and weapons.size() < max_weapon_slots
 
 
 func can_offer_weapon(weapon_definition: Resource) -> bool:

@@ -6,24 +6,15 @@ class_name KoalisiDadakan
 
 var _summon_elapsed := INF
 var _active_minions: Array[Node] = []
-var _player_is_dead := false
 
 
 func _on_weapon_setup() -> void:
 	# Langsung summon minion pertama saat weapon diaktifkan.
 	_free_active_minions()
-	_player_is_dead = false
 	_summon_elapsed = INF
-	var event_bus := get_node_or_null("/root/EventBus")
-	var death_callback := Callable(self, "_on_player_died")
-	if event_bus != null and not event_bus.is_connected("player_died", death_callback):
-		event_bus.connect("player_died", death_callback)
 
 
 func _physics_process(delta: float) -> void:
-	if _player_is_dead:
-		return
-
 	var player_node := get_owner_node()
 	if not is_instance_valid(player_node):
 		_free_active_minions()
@@ -89,6 +80,7 @@ func _summon_minion() -> void:
 	)
 
 	_active_minions.append(minion)
+	weapon_instance.register_damage_source(minion)
 	minion.tree_exited.connect(_on_minion_tree_exited.bind(minion), CONNECT_ONE_SHOT)
 	_summon_elapsed = 0.0
 
@@ -97,11 +89,7 @@ func _summon_minion() -> void:
 
 func _on_minion_tree_exited(minion: Node) -> void:
 	_active_minions.erase(minion)
-
-
-func _on_player_died() -> void:
-	_player_is_dead = true
-	_free_active_minions()
+	weapon_instance.unregister_damage_source(minion)
 
 
 func _free_active_minions() -> void:

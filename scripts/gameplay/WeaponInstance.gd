@@ -8,6 +8,8 @@ var modifier_manager
 var upgrade_stacks: Dictionary = {}
 var local_flat_modifiers: Dictionary = {}
 var local_percent_modifiers: Dictionary = {}
+var is_active := true
+var active_damage_sources: Array[Node] = []
 
 
 func setup(new_definition: Resource, new_owner_node: Node2D, new_modifier_manager, start_level: int = 1) -> void:
@@ -15,6 +17,42 @@ func setup(new_definition: Resource, new_owner_node: Node2D, new_modifier_manage
 	owner_node = new_owner_node
 	modifier_manager = new_modifier_manager
 	level = maxi(1, start_level)
+	is_active = true
+	active_damage_sources.clear()
+
+
+func deactivate() -> void:
+	if not is_active:
+		return
+	is_active = false
+	for damage_source in active_damage_sources.duplicate():
+		if is_instance_valid(damage_source):
+			damage_source.queue_free()
+	active_damage_sources.clear()
+
+
+func register_damage_source(damage_source: Node) -> void:
+	if damage_source == null:
+		return
+	if not is_active:
+		damage_source.queue_free()
+		return
+	if not active_damage_sources.has(damage_source):
+		active_damage_sources.append(damage_source)
+
+
+func unregister_damage_source(damage_source: Node) -> void:
+	active_damage_sources.erase(damage_source)
+
+
+func apply_damage(target: Node, amount: int, direction: Vector2, hit_position: Vector2) -> bool:
+	if not is_active or amount <= 0 or not is_instance_valid(target):
+		return false
+	if not target.has_method("take_damage"):
+		return false
+	target.call("take_damage", amount, direction, hit_position)
+	on_damage_dealt(amount)
+	return true
 
 
 func can_upgrade() -> bool:
@@ -40,6 +78,8 @@ func get_weapon_id() -> String:
 
 
 func get_damage() -> int:
+	if not is_active:
+		return 0
 	var base_damage := _get_float("base_damage", 0.0)
 	var damage_per_level := _get_float("damage_per_level", 0.0)
 	var level_bonus := damage_per_level * float(level - 1)
@@ -238,7 +278,7 @@ func get_upgrade_stacks() -> Dictionary:
 
 
 func on_damage_dealt(amount: int) -> void:
-	if amount <= 0 or owner_node == null or not owner_node.has_method("heal"):
+	if not is_active or amount <= 0 or owner_node == null or not owner_node.has_method("heal"):
 		return
 	var life_steal := _get_life_steal()
 	if life_steal <= 0.0:

@@ -81,8 +81,17 @@ func _run() -> void:
 	modifier_manager.modifiers[&"weapon.attack_speed"] = -0.5
 	modifier_manager.modifiers[&"weapon.range"] = 0.5
 	modifier_manager.modifiers[&"weapon.projectile_count"] = 2.0
-	_assert(instance.get_summon_damage() == 18, "modifier damage tidak terbaca live")
-	_assert(is_equal_approx(instance.get_summon_attack_cooldown(), 0.75), "attack speed tidak live")
+	var expected_weapon_damage := roundi(
+		(float(definition.base_damage) + float(definition.damage_per_level) * float(instance.level - 1))
+		* 2.0
+	)
+	var expected_damage := roundi(float(expected_weapon_damage) * float(definition.minion_damage_multiplier))
+	var expected_attack_cooldown := float(definition.minion_attack_cooldown) * 0.5
+	_assert(instance.get_summon_damage() == expected_damage, "modifier damage tidak terbaca live")
+	_assert(
+		is_equal_approx(instance.get_summon_attack_cooldown(), expected_attack_cooldown),
+		"attack speed tidak live"
+	)
 	_assert(is_equal_approx(instance.get_attack_range(), 600.0), "range tidak live")
 	_assert(instance.get_projectile_count() == 3, "projectile count tidak live")
 
@@ -105,8 +114,8 @@ func _run() -> void:
 	await process_frame
 	_assert(not is_instance_valid(minion_before_death), "summon orphan setelah player mati")
 	_assert(second_weapon._active_minions.is_empty(), "registry summon tidak bersih setelah player mati")
-	second_weapon._physics_process(10.0)
-	_assert(second_weapon._active_minions.is_empty(), "weapon summon lagi setelah player mati")
+	_assert(not second_weapon.is_physics_processing(), "weapon summon masih memproses setelah player mati")
+	_assert(not second_manager.is_active, "WeaponManager masih aktif setelah player mati")
 
 	if _failed:
 		quit(1)

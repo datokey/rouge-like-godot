@@ -49,6 +49,8 @@ func setup(
 	damage = projectile_damage
 	speed_override = projectile_speed
 	source_weapon = new_source_weapon
+	if source_weapon != null:
+		source_weapon.register_damage_source(self)
 	scale = Vector2.ONE * maxf(0.1, projectile_size)
 	direction = start_position.direction_to(target_position)
 	rotation = direction.angle()
@@ -70,8 +72,12 @@ func _on_area_entered(area: Area2D) -> void:
 	var owner_node := area.get_parent()
 	if owner_node != null and owner_node.is_in_group("enemy") and owner_node.has_method("take_damage"):
 		has_hit = true
-		owner_node.take_damage(damage, direction, global_position)
 		if source_weapon != null:
-			source_weapon.on_damage_dealt(damage)
+			source_weapon.apply_damage(owner_node, damage, direction, global_position)
 		# Menghindari perubahan state Area2D langsung dari callback area_entered.
 		call_deferred("queue_free")
+
+
+func _exit_tree() -> void:
+	if source_weapon != null:
+		source_weapon.unregister_damage_source(self)
