@@ -27,6 +27,7 @@ func _run() -> void:
 	_test_weapon_candidate_filtering()
 	_test_talisman_slot_and_compatibility_filtering()
 	_test_modifier_scope()
+	_test_utility_collection()
 	_test_controlled_rng_and_fallback()
 	if _failed:
 		quit(1)
@@ -44,7 +45,7 @@ func _test_weapon_candidate_filtering() -> void:
 		"owned_compatibility_tags": BEAM.compatibility_tags,
 		"owned_talisman_levels": {},
 		"can_add_talisman": true,
-		"utility_levels": {},
+		"utility_stacks": {},
 	}
 	var candidates := POOL.get_valid_candidates(beam_context)
 	var rolled_offers := POOL.roll_offers(beam_context, 3)
@@ -102,7 +103,7 @@ func _test_talisman_slot_and_compatibility_filtering() -> void:
 		"owned_compatibility_tags": BEAM.compatibility_tags,
 		"owned_talisman_levels": {},
 		"can_add_talisman": true,
-		"utility_levels": {},
+		"utility_stacks": {},
 	}
 	for offer in POOL.get_valid_candidates(context):
 		if offer.talisman != null:
@@ -149,7 +150,7 @@ func _test_controlled_rng_and_fallback() -> void:
 		"owned_compatibility_tags": BEAM.compatibility_tags,
 		"owned_talisman_levels": {},
 		"can_add_talisman": true,
-		"utility_levels": {},
+		"utility_stacks": {},
 		"luck": 0.0,
 	}
 	var rng := root.get_node_or_null("Rng")
@@ -172,7 +173,7 @@ func _test_controlled_rng_and_fallback() -> void:
 		"owned_compatibility_tags": [],
 		"owned_talisman_levels": {},
 		"can_add_talisman": false,
-		"utility_levels": {"pickup_radius": 5, "revive": 1},
+		"utility_stacks": {"pickup_radius": 5, "revive": 3},
 		"luck": 0.0,
 	}
 	var fallback_offers := POOL.roll_offers(empty_context, 3)
@@ -181,11 +182,47 @@ func _test_controlled_rng_and_fallback() -> void:
 		_assert(offer.utility != null and offer.utility.id.begins_with("fallback_"), "reward non-fallback lolos saat pool kosong")
 
 
+func _test_utility_collection() -> void:
+	var build := BuildManager.new()
+	var revive := _find_utility("revive")
+	_assert(revive != null, "utility Revive tidak ditemukan")
+	_assert(build.add_utility(revive), "stack Revive pertama gagal")
+	_assert(build.add_utility(revive), "stack Revive kedua gagal")
+	_assert(build.utility_stacks.get("revive", 0) == 2, "utility masih memakai konsep level")
+	_assert(build.add_utility(revive), "stack Revive ketiga gagal")
+	_assert(not build.add_utility(revive), "Revive melewati max_stack")
+
+	var context := {
+		"owned_weapon_ids": [],
+		"can_add_weapon": false,
+		"owned_weapon_definitions": {},
+		"weapon_upgrade_stacks": {},
+		"owned_compatibility_tags": [],
+		"owned_talisman_levels": {},
+		"can_add_talisman": false,
+		"utility_stacks": {"pickup_radius": 0, "revive": 0},
+		"luck": 0.0,
+	}
+	for offer in POOL.get_valid_candidates(context):
+		if offer.category != RewardOffer.Category.UTILITY:
+			continue
+		_assert(int(offer.rarity) == int(offer.utility.rarity), "rarity utility tidak berasal dari definition")
+		_assert(is_equal_approx(offer.rarity_multiplier, 1.0), "rarity mengubah efek per stack utility")
+
+
 func _find_talisman(talisman_id: String) -> TalismanDefinition:
 	for resource in POOL.talisman_definitions:
 		var talisman := resource as TalismanDefinition
 		if talisman != null and talisman.id == talisman_id:
 			return talisman
+	return null
+
+
+func _find_utility(utility_id: String) -> UtilityDefinition:
+	for resource in POOL.utility_definitions:
+		var utility := resource as UtilityDefinition
+		if utility != null and utility.id == utility_id:
+			return utility
 	return null
 
 

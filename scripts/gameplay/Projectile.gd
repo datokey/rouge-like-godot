@@ -5,17 +5,20 @@ extends Node2D
 @export var damage := 0
 
 @onready var hitbox: Area2D = $Hitbox
+@onready var visual: Node2D = $Visual
 
 var direction := Vector2.RIGHT
 var lifetime_remaining := 0.0
 var has_hit := false
 var speed_override := -1.0
 var source_weapon: WeaponInstance
+var size_multiplier := 1.0
 
 
 func _ready() -> void:
 	hitbox.body_entered.connect(_on_body_entered)
 	hitbox.area_entered.connect(_on_area_entered)
+	_sync_projectile_size()
 	if config != null:
 		lifetime_remaining = config.lifetime
 
@@ -51,9 +54,18 @@ func setup(
 	source_weapon = new_source_weapon
 	if source_weapon != null:
 		source_weapon.register_damage_source(self)
-	scale = Vector2.ONE * maxf(0.1, projectile_size)
+	# WeaponInstance sudah menerapkan batas size dari WeaponDefinition.
+	size_multiplier = projectile_size
+	_sync_projectile_size()
 	direction = start_position.direction_to(target_position)
 	rotation = direction.angle()
+
+
+func _sync_projectile_size() -> void:
+	if visual != null:
+		visual.scale = Vector2.ONE * size_multiplier
+	if hitbox != null:
+		hitbox.scale = Vector2.ONE * size_multiplier
 
 
 func _on_body_entered(body: Node) -> void:

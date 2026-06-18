@@ -8,6 +8,7 @@ class_name RewardPoolConfig
 @export var fallback_definitions: Array[Resource] = []
 @export var rarity_weights: Array[float] = [70.0, 20.0, 7.0, 2.5, 0.5]
 @export var rarity_multipliers: Array[float] = [1.0, 1.15, 1.3, 1.5, 2.0]
+@export var utility_rarity_weight_multipliers: Array[float] = [1.0, 0.7, 0.4, 0.18, 0.06]
 
 
 func roll_offers(context: Dictionary, max_offer_count: int) -> Array[RewardOffer]:
@@ -19,7 +20,7 @@ func roll_offers(context: Dictionary, max_offer_count: int) -> Array[RewardOffer
 		if candidate_index < 0:
 			break
 		var offer := candidates.pop_at(candidate_index) as RewardOffer
-		_roll_rarity(offer, float(context.get("luck", 0.0)))
+		_assign_offer_rarity(offer, float(context.get("luck", 0.0)))
 		offers.append(offer)
 	if offers.size() < target_count:
 		_add_fallback_offers(offers, context, target_count)
@@ -81,17 +82,18 @@ func get_valid_candidates(context: Dictionary) -> Array[RewardOffer]:
 		offer.weight = talisman.weight
 		candidates.append(offer)
 
-	var utility_levels: Dictionary = context.get("utility_levels", {})
+	var utility_stacks: Dictionary = context.get("utility_stacks", {})
+	var luck := float(context.get("luck", 0.0))
 	for resource in utility_definitions:
 		var utility := resource as UtilityDefinition
 		if utility == null or not utility.enabled or utility.id.is_empty():
 			continue
-		if utility.max_level > 0 and int(utility_levels.get(utility.id, 0)) >= utility.max_level:
+		if utility.max_stack > 0 and int(utility_stacks.get(utility.id, 0)) >= utility.max_stack:
 			continue
 		var offer := RewardOffer.new()
 		offer.category = RewardOffer.Category.UTILITY
 		offer.utility = utility
-		offer.weight = utility.weight
+		_configure_utility_offer(offer, utility, luck)
 		candidates.append(offer)
 
 	return candidates
@@ -139,6 +141,22 @@ func _roll_rarity(offer: RewardOffer, luck: float) -> void:
 	offer.rarity_multiplier = rarity_multipliers[rarity_index] if rarity_index < rarity_multipliers.size() else 1.0
 
 
+func _assign_offer_rarity(offer: RewardOffer, luck: float) -> void:
+	if offer.category == RewardOffer.Category.UTILITY:
+		return
+	_roll_rarity(offer, luck)
+
+
+func _configure_utility_offer(offer: RewardOffer, utility: UtilityDefinition, luck: float) -> void:
+	var rarity_index := clampi(int(utility.rarity), 0, RewardOffer.Rarity.size() - 1)
+	var rarity_weight := utility_rarity_weight_multipliers[rarity_index] \
+		if rarity_index < utility_rarity_weight_multipliers.size() else 1.0
+	var luck_boost := 1.0 + maxf(0.0, luck) * float(rarity_index)
+	offer.rarity = rarity_index as RewardOffer.Rarity
+	offer.rarity_multiplier = 1.0
+	offer.weight = utility.weight * maxf(0.0, rarity_weight) * luck_boost
+
+
 func _add_fallback_offers(
 	offers: Array[RewardOffer],
 	context: Dictionary,
@@ -154,7 +172,7 @@ func _add_fallback_offers(
 			return
 		var selected_index := _roll_candidate_index(fallback_candidates)
 		var offer := fallback_candidates.pop_at(selected_index) as RewardOffer
-		_roll_rarity(offer, luck)
+		_assign_offer_rarity(offer, luck)
 		offers.append(offer)
 
 
@@ -167,17 +185,17 @@ func _get_valid_fallback_candidates(
 	for existing_offer in existing_offers:
 		if existing_offer is RewardOffer:
 			existing_ids.append((existing_offer as RewardOffer).get_unique_id())
-	var utility_levels: Dictionary = context.get("utility_levels", {})
+	var utility_stacks: Dictionary = context.get("utility_stacks", {})
 	for resource in fallback_definitions:
 		var utility := resource as UtilityDefinition
 		if utility == null or not utility.enabled or utility.id.is_empty():
 			continue
-		if utility.max_level > 0 and int(utility_levels.get(utility.id, 0)) >= utility.max_level:
+		if utility.max_stack > 0 and int(utility_stacks.get(utility.id, 0)) >= utility.max_stack:
 			continue
 		var offer := RewardOffer.new()
 		offer.category = RewardOffer.Category.UTILITY
 		offer.utility = utility
-		offer.weight = utility.weight
+		_configure_utility_offer(offer, utility, float(context.get("luck", 0.0)))
 		if existing_ids.has(offer.get_unique_id()):
 			continue
 		candidates.append(offer)

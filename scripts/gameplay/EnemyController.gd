@@ -11,6 +11,7 @@ extends CharacterBody2D
 @onready var drop_point: Node2D = $DropPoint
 @onready var visual: Polygon2D = $Visual
 @onready var hit_sound_player: AudioStreamPlayer2D = $HitSound
+@onready var contact_area: Area2D = $Hurtbox
 
 var current_hp := 0
 var contact_timer := 0.0
@@ -34,6 +35,7 @@ var stuck_timer := 0.0
 var has_detour_waypoint := false
 var detour_waypoint := Vector2.ZERO
 var detour_refresh_timer := 0.0
+var separation_shape := CircleShape2D.new()
 
 
 func _ready() -> void:
@@ -42,6 +44,11 @@ func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	current_hp = get_max_hp()
 	target = get_tree().get_first_node_in_group("player") as Node2D
+	var target_body := target as PhysicsBody2D
+	if target_body != null:
+		add_collision_exception_with(target_body)
+		target_body.add_collision_exception_with(self)
+	separation_shape.radius = config.separation_radius
 	base_visual_color = visual.color
 	avoidance_side = 1.0 if get_instance_id() % 2 == 0 else -1.0
 	if config.detour_refresh_interval > 0.0:
@@ -74,6 +81,14 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	var contacted_player := _get_contact_player()
+	if contacted_player != null:
+		# Kontak player bersifat soft: enemy berhenti mengejar tanpa menjadi dinding solid.
+		velocity = Vector2.ZERO
+		_apply_controlled_knockback(delta)
+		_try_damage_player(contacted_player)
+		return
+
 	var chase_direction := global_position.direction_to(target.global_position)
 	var move_direction := _get_move_direction(chase_direction, delta)
 	var position_before_move := global_position
@@ -97,19 +112,24 @@ func take_damage(amount: int, hit_direction: Vector2 = Vector2.ZERO, hit_positio
 		_die()
 
 
-func _try_damage_player() -> void:
+func _try_damage_player(contacted_player: Node = null) -> void:
 	if contact_timer > 0.0:
 		return
 
-	# Contact damage dibaca dari collision hasil move_and_slide().
-	for index in range(get_slide_collision_count()):
-		var collision := get_slide_collision(index)
-		var collider := collision.get_collider()
+	if contacted_player == null:
+		contacted_player = _get_contact_player()
+	if contacted_player != null and contacted_player.has_method("take_damage"):
+		contacted_player.take_damage(get_contact_damage())
+		contact_timer = config.contact_cooldown
 
-		if collider.is_in_group("player") and collider.has_method("take_damage"):
-			collider.take_damage(get_contact_damage())
-			contact_timer = config.contact_cooldown
-			return
+
+func _get_contact_player() -> Node:
+	if contact_area == null:
+		return null
+	for body in contact_area.get_overlapping_bodies():
+		if body.is_in_group("player"):
+			return body
+	return null
 
 
 func _die() -> void:
@@ -200,19 +220,56 @@ func get_contact_damage() -> int:
 
 func _get_move_direction(chase_direction: Vector2, delta: float) -> Vector2:
 	var base_direction := _get_detour_direction(chase_direction, delta)
+	var movement_direction := base_direction
 
-	if not config.obstacle_avoidance_enabled:
-		return base_direction
+	if config.obstacle_avoidance_enabled \
+		and avoidance_remaining > 0.0 \
+		and avoidance_direction != Vector2.ZERO:
+		avoidance_remaining = maxf(avoidance_remaining - delta, 0.0)
+		var mixed_direction := base_direction + avoidance_direction * config.obstacle_avoidance_weight
+		if mixed_direction != Vector2.ZERO:
+			movement_direction = mixed_direction.normalized()
 
-	if avoidance_remaining <= 0.0 or avoidance_direction == Vector2.ZERO:
-		return base_direction
+	return _apply_enemy_separation(movement_direction)
 
-	avoidance_remaining = maxf(avoidance_remaining - delta, 0.0)
-	var mixed_direction := base_direction + avoidance_direction * config.obstacle_avoidance_weight
-	if mixed_direction == Vector2.ZERO:
-		return base_direction
 
-	return mixed_direction.normalized()
+func _apply_enemy_separation(move_direction: Vector2) -> Vector2:
+	if config.separation_radius <= 0.0 or config.separation_weight <= 0.0:
+		return move_direction
+
+	var separation := Vector2.ZERO
+	separation_shape.radius = config.separation_radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = separation_shape
+	query.transform = Transform2D(0.0, global_position)
+	query.collision_mask = collision_layer
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.exclude = [get_rid()]
+	var nearby_bodies := get_world_2d().direct_space_state.intersect_shape(
+		query,
+		config.separation_max_neighbors
+	)
+	for result in nearby_bodies:
+		var other := result.get("collider") as Node2D
+		if other == null or other == self:
+			continue
+		var offset := global_position - other.global_position
+		var distance_squared := offset.length_squared()
+		if distance_squared <= 0.001:
+			var angle := float(get_instance_id() % 16) * TAU / 16.0
+			separation += Vector2.RIGHT.rotated(angle)
+			continue
+		var distance := sqrt(distance_squared)
+		separation += offset / distance * (1.0 - distance / config.separation_radius)
+
+	if separation == Vector2.ZERO:
+		return move_direction
+	var separated_direction := move_direction + separation.normalized() * config.separation_weight
+	if separated_direction == Vector2.ZERO:
+		return move_direction
+
+	return separated_direction.normalized()
 
 
 func _get_detour_direction(chase_direction: Vector2, delta: float) -> Vector2:

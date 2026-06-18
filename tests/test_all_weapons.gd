@@ -96,8 +96,39 @@ func _run() -> void:
 	await physics_frame
 
 	var basic := manager.weapon_nodes.get("basic_gun") as BasicGun
+	var basic_instance := manager.get_weapon_instance("basic_gun")
+	var damage_before_size := basic_instance.get_damage_preview()
+	var cooldown_before_size := basic_instance.get_cooldown()
+	var speed_before_size := basic_instance.get_projectile_speed()
+	var size_upgrade: WeaponUpgradeDefinition
+	for upgrade_resource in basic_instance.definition.upgrade_options:
+		var upgrade := upgrade_resource as WeaponUpgradeDefinition
+		if upgrade != null and upgrade.modifier_key == &"weapon.projectile_size":
+			size_upgrade = upgrade
+			break
+	_assert(size_upgrade != null, "BasicGun tidak memiliki upgrade projectile size")
+	_assert(
+		manager.apply_stat_upgrade("basic_gun", size_upgrade, 1.0),
+		"upgrade projectile size gagal diterapkan"
+	)
+	var expected_projectile_size := basic_instance.get_projectile_size()
+	_assert(expected_projectile_size > 1.0, "projectile size runtime tidak bertambah")
+	_assert(basic_instance.get_damage_preview() == damage_before_size, "projectile size mengubah damage")
+	_assert(is_equal_approx(basic_instance.get_cooldown(), cooldown_before_size), "projectile size mengubah cooldown")
+	_assert(is_equal_approx(basic_instance.get_projectile_speed(), speed_before_size), "projectile size mengubah speed")
 	basic._physics_process(0.0)
 	_assert(_count_projectiles(scene_root) > 0, "BasicGun tidak membuat projectile")
+	var sized_projectile := _get_projectiles(scene_root)[0]
+	var projectile_visual := sized_projectile.get_node("Visual") as Node2D
+	var projectile_hitbox := sized_projectile.get_node("Hitbox") as Area2D
+	_assert(
+		projectile_visual.scale.is_equal_approx(Vector2.ONE * expected_projectile_size),
+		"visual projectile tidak mengikuti projectile size"
+	)
+	_assert(
+		projectile_hitbox.scale.is_equal_approx(projectile_visual.scale),
+		"scale collision projectile berbeda dari visual"
+	)
 
 	var aura := manager.weapon_nodes.get("weapon_aura") as AuraWeapon
 	var damage_before_aura := enemy.damage_events

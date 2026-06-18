@@ -9,6 +9,7 @@ enum ValueType {
 @export var id := ""
 @export var display_name := "Modifier"
 @export_multiline var description := ""
+@export var icon: Texture2D
 @export var modifier_key: StringName
 @export var value := 0.0
 @export var value_type: ValueType = ValueType.FLAT
@@ -17,4 +18,3 @@ enum ValueType {
 
 func get_scaled_value(rarity_multiplier: float) -> float:
 	return value * rarity_multiplier
-

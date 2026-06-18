@@ -7,7 +7,7 @@ script = ExtResource("1")
 id = "extra_reroll"
 display_name = "Second Thought"
 description = "Menambah satu reroll upgrade."
+rarity = 1
 effect_type = 0
 value = 1.0
-max_level = 3
-
+max_stack = 3

@@ -9,5 +9,4 @@ display_name = "Wide Collector"
 description = "Memperluas radius pickup."
 effect_type = 1
 value = 18.0
-max_level = 5
-
+max_stack = 5

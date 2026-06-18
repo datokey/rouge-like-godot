@@ -7,8 +7,8 @@ script = ExtResource("1")
 id = "fallback_fortitude"
 display_name = "Fortitude Cache"
 description = "Fallback: menambah Max HP secara permanen."
+rarity = 1
 effect_type = 7
 value = 7.0
-max_level = 0
+max_stack = 0
 weight = 2.0
-

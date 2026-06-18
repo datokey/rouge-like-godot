@@ -7,8 +7,8 @@ script = ExtResource("1")
 id = "revive"
 display_name = "Last Stand"
 description = "Menghidupkan player satu kali saat HP habis."
+rarity = 2
 effect_type = 2
 value = 1.0
-max_level = 1
+max_stack = 3
 weight = 0.35
-

@@ -80,13 +80,17 @@ func get_weapon_id() -> String:
 func get_damage() -> int:
 	if not is_active:
 		return 0
-	var base_damage := _get_float("base_damage", 0.0)
-	var damage_per_level := _get_float("damage_per_level", 0.0)
-	var level_bonus := damage_per_level * float(level - 1)
-	var damage := maxi(0, roundi(_apply_modifiers(base_damage + level_bonus, &"weapon.damage")))
+	var damage := get_damage_preview()
 	if _roll_critical_hit():
 		damage = roundi(float(damage) * (1.0 + _get_critical_damage()))
 	return damage
+
+
+func get_damage_preview() -> int:
+	var base_damage := _get_float("base_damage", 0.0)
+	var damage_per_level := _get_float("damage_per_level", 0.0)
+	var level_bonus := damage_per_level * float(level - 1)
+	return maxi(0, roundi(_apply_modifiers(base_damage + level_bonus, &"weapon.damage")))
 
 
 func get_cooldown() -> float:
@@ -105,7 +109,16 @@ func get_projectile_count() -> int:
 
 
 func get_projectile_size() -> float:
-	return maxf(0.1, _apply_modifiers(1.0, &"weapon.projectile_size"))
+	var base_size := _get_float("base_projectile_size", 1.0)
+	var size_per_level := _get_float("projectile_size_per_level", 0.0)
+	var minimum_size := maxf(0.01, _get_float("min_projectile_size", 0.1))
+	var maximum_size := maxf(minimum_size, _get_float("max_projectile_size", 10.0))
+	var scaled_size := base_size + size_per_level * float(level - 1)
+	return clampf(
+		_apply_modifiers(scaled_size, &"weapon.projectile_size"),
+		minimum_size,
+		maximum_size
+	)
 
 
 func get_projectile_speed() -> float:

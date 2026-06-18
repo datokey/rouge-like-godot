@@ -178,7 +178,8 @@ func _sync_xp_state() -> void:
 func _on_reward_selected(offer: RewardOffer) -> void:
 	if build_manager == null:
 		return
-	build_manager.apply_offer(offer, weapon_manager)
+	if build_manager.apply_offer(offer, weapon_manager):
+		EventBus.player_build_changed.emit()
 
 
 func get_reward_offer_context() -> Dictionary:
@@ -207,7 +208,81 @@ func equip_starting_weapon(weapon_definition: Resource = null) -> bool:
 		return false
 
 	starting_weapon = selected_weapon
-	return weapon_manager.add_weapon(selected_weapon)
+	var equipped: bool = weapon_manager.add_weapon(selected_weapon)
+	if equipped:
+		EventBus.player_build_changed.emit()
+	return equipped
+
+
+func get_build_hud_snapshot() -> Dictionary:
+	var weapon_entries: Array[Dictionary] = []
+	var damage_values: Array[String] = []
+	var cooldown_values: Array[String] = []
+	var projectile_values: Array[String] = []
+	var owned_tags: Array = []
+	if weapon_manager != null:
+		for instance in weapon_manager.weapons:
+			var definition: Resource = instance.definition
+			weapon_entries.append({
+				"name": str(definition.get("display_name")),
+				"level": instance.level,
+				"icon": definition.get("icon"),
+			})
+			damage_values.append(
+				"%s %d" % [definition.get("display_name"), instance.get_damage_preview()]
+			)
+			cooldown_values.append("%s %.2fs" % [definition.get("display_name"), instance.get_cooldown()])
+			if definition.get("compatibility_tags").has(CompatibilityTags.PROJECTILE):
+				projectile_values.append(
+					"%s x%d" % [definition.get("display_name"), instance.get_projectile_count()]
+				)
+			for tag in definition.get("compatibility_tags"):
+				if not owned_tags.has(tag):
+					owned_tags.append(tag)
+
+	var talisman_entries: Array[Dictionary] = []
+	var utility_entries: Array[Dictionary] = []
+	if build_manager != null:
+		for talisman_id in build_manager.talisman_levels:
+			var talisman: Resource = build_manager.talisman_definitions.get(talisman_id)
+			if talisman != null:
+				talisman_entries.append({
+					"name": str(talisman.get("display_name")),
+					"level": int(build_manager.talisman_levels[talisman_id]),
+					"icon": talisman.get("icon"),
+				})
+		for utility_id in build_manager.utility_stacks:
+			var utility: Resource = build_manager.utility_definitions.get(utility_id)
+			if utility != null:
+				utility_entries.append({
+					"name": str(utility.get("display_name")),
+					"count": int(build_manager.utility_stacks[utility_id]),
+					"icon": utility.get("icon"),
+				})
+
+	var stat_lines: Array[String] = [
+		"Damage: %s" % (", ".join(damage_values) if not damage_values.is_empty() else "-"),
+		"Movement Speed: %.1f" % get_move_speed(),
+		"Cooldown: %s" % (", ".join(cooldown_values) if not cooldown_values.is_empty() else "-"),
+		"Projectile Count: %s" % (
+			", ".join(projectile_values) if not projectile_values.is_empty() else "-"
+		),
+		"Pickup Radius: %.1f" % (config.pickup_radius + pickup_radius_bonus),
+		"Revive: %d" % revive_charges,
+	]
+	if build_manager != null:
+		stat_lines.append("Armor: %d" % build_manager.get_armor())
+		stat_lines.append("Critical Chance: %.1f%%" % (build_manager.get_critical_chance(owned_tags) * 100.0))
+		stat_lines.append("Critical Damage: %.1f%%" % (build_manager.get_critical_damage(owned_tags) * 100.0))
+		stat_lines.append("Life Steal: %.1f%%" % (build_manager.get_life_steal(owned_tags) * 100.0))
+		stat_lines.append("Luck: %.1f" % build_manager.get_luck())
+
+	return {
+		"weapons": weapon_entries,
+		"talismans": talisman_entries,
+		"utilities": utility_entries,
+		"stat_lines": stat_lines,
+	}
 
 
 func sync_pickup_radius() -> void:

@@ -9,6 +9,5 @@ display_name = "Vitality Cache"
 description = "Fallback: menambah Max HP secara permanen."
 effect_type = 7
 value = 5.0
-max_level = 0
+max_stack = 0
 weight = 3.0
-

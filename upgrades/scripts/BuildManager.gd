@@ -8,7 +8,8 @@ var max_talisman_slots := 4
 var owner_node: Node
 var talisman_levels: Dictionary = {}
 var talisman_definitions: Dictionary = {}
-var utility_levels: Dictionary = {}
+var utility_stacks: Dictionary = {}
+var utility_definitions: Dictionary = {}
 var active_modifiers: Array[Dictionary] = []
 
 
@@ -31,7 +32,7 @@ func apply_offer(offer: RewardOffer, weapon_manager: WeaponManager) -> bool:
 		RewardOffer.Category.TALISMAN_NEW, RewardOffer.Category.TALISMAN_UPGRADE:
 			return add_talisman(offer.talisman, offer.rarity_multiplier)
 		RewardOffer.Category.UTILITY:
-			return add_utility(offer.utility, offer.rarity_multiplier)
+			return add_utility(offer.utility)
 	return false
 
 
@@ -55,14 +56,15 @@ func add_talisman(talisman: TalismanDefinition, rarity_multiplier: float) -> boo
 	return true
 
 
-func add_utility(utility: UtilityDefinition, rarity_multiplier: float) -> bool:
+func add_utility(utility: UtilityDefinition) -> bool:
 	if utility == null or not utility.enabled or utility.id.is_empty():
 		return false
-	var current_level := int(utility_levels.get(utility.id, 0))
-	if utility.max_level > 0 and current_level >= utility.max_level:
+	var current_stack := int(utility_stacks.get(utility.id, 0))
+	if utility.max_stack > 0 and current_stack >= utility.max_stack:
 		return false
-	utility_levels[utility.id] = current_level + 1
-	_apply_utility(utility, utility.value * rarity_multiplier)
+	utility_stacks[utility.id] = current_stack + 1
+	utility_definitions[utility.id] = utility
+	_apply_utility(utility, utility.value)
 	return true
 
 
@@ -130,7 +132,7 @@ func get_offer_context(owned_weapon_tags: Array) -> Dictionary:
 		"can_add_talisman": can_add_talisman(),
 		"owned_talisman_levels": talisman_levels.duplicate(true),
 		"owned_compatibility_tags": owned_weapon_tags.duplicate(),
-		"utility_levels": utility_levels.duplicate(true),
+		"utility_stacks": utility_stacks.duplicate(true),
 		"luck": get_luck(),
 	}
 
