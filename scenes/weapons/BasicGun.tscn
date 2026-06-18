@@ -1,8 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://kxrqhj7iq4o3"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/BasicGun.gd" id="1_basic_gun"]
+[ext_resource type="Script" uid="uid://yxbwihv3uljx" path="res://scripts/gameplay/BasicGun.gd" id="1_basic_gun"]
 [ext_resource type="PackedScene" path="res://scenes/entities/Projectile.tscn" id="2_projectile"]
 
-[node name="BasicGun" type="Node2D"]
+[node name="BasicGun" type="Node2D" unique_id=1479537491]
 script = ExtResource("1_basic_gun")
 projectile_scene = ExtResource("2_projectile")

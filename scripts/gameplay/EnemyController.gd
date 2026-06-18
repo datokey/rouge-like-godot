@@ -37,6 +37,9 @@ var detour_refresh_timer := 0.0
 
 
 func _ready() -> void:
+	# Top-down movement tidak memiliki floor/platform. Mode floating mencegah velocity
+	# CharacterBody2D lain (termasuk player) diwariskan saat terjadi kontak.
+	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	current_hp = get_max_hp()
 	target = get_tree().get_first_node_in_group("player") as Node2D
 	base_visual_color = visual.color
