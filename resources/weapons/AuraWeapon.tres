@@ -2,23 +2,51 @@
 
 [ext_resource type="Script" uid="uid://bhag06ljkevr6" path="res://scripts/gameplay/AuraWeaponDefinition.gd" id="1_aura_def"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/AuraWeapon.tscn" id="2_aura_scene"]
+[ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="3_upgrade"]
+
+[sub_resource type="Resource" id="Upgrade_damage"]
+script = ExtResource("3_upgrade")
+id = "damage"
+display_name = "Damage"
+modifier_key = &"weapon.damage"
+value = 0.1
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_radius"]
+script = ExtResource("3_upgrade")
+id = "radius"
+display_name = "Aura Radius"
+modifier_key = &"weapon.aura_radius"
+value = 0.12
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_tick_rate"]
+script = ExtResource("3_upgrade")
+id = "tick_rate"
+display_name = "Tick Rate"
+modifier_key = &"weapon.aura_tick_interval"
+value = -0.1
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_slow"]
+script = ExtResource("3_upgrade")
+id = "slow_strength"
+display_name = "Slow Strength"
+modifier_key = &"weapon.aura_slow"
+value = 0.05
 
 [resource]
 script = ExtResource("1_aura_def")
+slow_percent = 0.4
 id = "weapon_aura"
 display_name = "Frost Aura"
 description = "Aura yang selalu mengikuti player. Musuh di dalam area akan menerima damage dan efek slow."
 weapon_type = 1
 weapon_scene = ExtResource("2_aura_scene")
+compatibility_tags = Array[StringName]([&"AURA", &"CAN_CRIT", &"CAN_LIFESTEAL"])
+upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_radius"), SubResource("Upgrade_tick_rate"), SubResource("Upgrade_slow")])
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.range"])
 base_damage = 5.0
 base_cooldown = 0.5
 base_range = 70.0
 cooldown_reduction_per_level = 0.0
-aura_radius = 70.0
-aura_radius_per_level = 0.0
-slow_percent = 0.4
-slow_duration = 1.0
-tick_interval = 0.5
-tick_damage_multiplier = 1.0
-enable_knockback = false
-supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.range"])

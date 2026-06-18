@@ -50,5 +50,7 @@ func _shoot_projectiles(target: Node2D) -> void:
 			owner_node.global_position,
 			target_position,
 			get_damage(),
-			weapon_instance.get_projectile_speed()
+			weapon_instance.get_projectile_speed(),
+			weapon_instance.get_projectile_size(),
+			weapon_instance
 		)

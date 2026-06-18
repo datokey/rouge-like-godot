@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UtilityDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://upgrades/scripts/UtilityDefinition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "extra_reroll"
+display_name = "Second Thought"
+description = "Menambah satu reroll upgrade."
+effect_type = 0
+value = 1.0
+max_level = 3
+

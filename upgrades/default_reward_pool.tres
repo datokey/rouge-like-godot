@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="RewardPoolConfig" format=3 uid="uid://bi17dpnl8dafg"]
+
+[ext_resource type="Script" uid="uid://bi81itpcali22" path="res://upgrades/scripts/RewardPoolConfig.gd" id="1_pool"]
+[ext_resource type="Resource" uid="uid://uduvap0j5ufu" path="res://resources/weapons/BasicGun.tres" id="2_basic"]
+[ext_resource type="Resource" uid="uid://dnew66iaxgnf0" path="res://resources/weapons/BeamGun.tres" id="3_beam"]
+[ext_resource type="Resource" uid="uid://bxrasw2j4h6jr" path="res://resources/weapons/AuraWeapon.tres" id="4_aura"]
+[ext_resource type="Resource" uid="uid://bdkofeqiff4i0" path="res://resources/weapons/KoalisiDadakan.tres" id="5_summon"]
+[ext_resource type="Resource" path="res://upgrades/talismans/attack_speed.tres" id="6_attack_speed"]
+[ext_resource type="Resource" path="res://upgrades/talismans/movement_speed.tres" id="7_move_speed"]
+[ext_resource type="Resource" path="res://upgrades/talismans/damage.tres" id="8_damage"]
+[ext_resource type="Resource" path="res://upgrades/talismans/critical_chance.tres" id="9_crit_chance"]
+[ext_resource type="Resource" path="res://upgrades/talismans/critical_damage.tres" id="10_crit_damage"]
+[ext_resource type="Resource" path="res://upgrades/talismans/projectile_count.tres" id="11_projectile_count"]
+[ext_resource type="Resource" path="res://upgrades/talismans/luck.tres" id="12_luck"]
+[ext_resource type="Resource" path="res://upgrades/talismans/life_steal.tres" id="13_life_steal"]
+[ext_resource type="Resource" path="res://upgrades/talismans/armor.tres" id="14_armor"]
+[ext_resource type="Resource" path="res://upgrades/utilities/pickup_radius.tres" id="15_pickup"]
+[ext_resource type="Resource" path="res://upgrades/utilities/revive.tres" id="17_revive"]
+[ext_resource type="Resource" path="res://upgrades/utilities/fallback_vitality.tres" id="18_fallback_vitality"]
+[ext_resource type="Resource" path="res://upgrades/utilities/fallback_fortitude.tres" id="19_fallback_fortitude"]
+[ext_resource type="Resource" path="res://upgrades/utilities/fallback_survivor.tres" id="20_fallback_survivor"]
+
+[resource]
+script = ExtResource("1_pool")
+weapon_definitions = Array[Resource]([ExtResource("2_basic"), ExtResource("3_beam"), ExtResource("4_aura"), ExtResource("5_summon")])
+talisman_definitions = Array[Resource]([ExtResource("6_attack_speed"), ExtResource("7_move_speed"), ExtResource("8_damage"), ExtResource("9_crit_chance"), ExtResource("10_crit_damage"), ExtResource("11_projectile_count"), ExtResource("12_luck"), ExtResource("13_life_steal"), ExtResource("14_armor")])
+utility_definitions = Array[Resource]([ExtResource("15_pickup"), ExtResource("17_revive")])
+fallback_definitions = Array[Resource]([ExtResource("18_fallback_vitality"), ExtResource("19_fallback_fortitude"), ExtResource("20_fallback_survivor")])

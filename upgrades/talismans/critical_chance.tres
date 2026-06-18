@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="TalismanDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://upgrades/scripts/TalismanDefinition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "critical_chance"
+display_name = "Critical Chance Talisman"
+description = "Memberi peluang serangan menghasilkan critical hit."
+modifier_key = &"combat.critical_chance"
+value = 0.05
+compatibility_tags = Array[StringName]([&"CAN_CRIT"])
+

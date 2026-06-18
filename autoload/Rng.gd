@@ -20,5 +20,9 @@ func range_i(min_value: int, max_value: int) -> int:
 	return generator.randi_range(min_value, max_value)
 
 
+func range_f(min_value: float, max_value: float) -> float:
+	return generator.randf_range(min_value, max_value)
+
+
 func chance(probability: float) -> bool:
 	return generator.randf() <= probability

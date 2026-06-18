@@ -38,8 +38,8 @@ Dokumentasi ini menjelaskan fondasi game action roguelike top-down yang sedang d
   Singleton global untuk state, event, RNG, dan run manager.
 - `resources/`
   Data balancing berbentuk `.tres`, supaya angka gameplay tidak hardcoded di script.
-- `resources/abilities/`
-  Data default modifier ability dan multiplier rarity.
+- `upgrades/`
+  Pool reward, stat upgrade weapon, talisman, utility, compatibility tag, dan runtime build manager.
 - `resources/difficulty/`
   Data progression difficulty berbasis progress waktu run.
 - `resources/run/`
@@ -58,7 +58,7 @@ Isi utamanya:
 - `World`
   Menampung arena, player, spawner, enemy, projectile, dan pickup.
 - `UI`
-  Menampung `PlayerHud`, `AbilitySelectionScreen`, `WinScreen`, dan `GameOverScreen`.
+  Menampung HUD, selection screen level-up, win screen, dan game over screen.
 
 ## Resource config
 
@@ -80,10 +80,8 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
   Contoh weapon `AURA` yang memakai `AuraWeaponDefinition`.
 - `resources/weapons/KoalisiDadakan.tres`
   Contoh weapon `SUMMON` yang memakai `SummonWeaponDefinition`.
-- `resources/abilities/default_ability_modifiers.tres`
-  Default nilai modifier ability dan multiplier rarity.
-- `resources/abilities/default_ability_pool.tres`
-  Pool data upgrade level up. Prototype saat ini berisi minimal 10 `AbilityDefinition`.
+- `upgrades/default_reward_pool.tres`
+  Pool configurable untuk weapon baru, upgrade stat weapon, talisman, utility, rarity, dan weight.
 - `resources/projectiles/player_projectile.tres`
   Kecepatan dan lifetime projectile.
 - `resources/feedback/default_hit_feedback.tres`
@@ -115,7 +113,7 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 
 1. `Main` memanggil `RunManager.start_run()` saat scene dibuka/reload.
 2. `RunManager` reset run, mengisi seed, dan mulai menghitung survival timer.
-3. `PlayerController` membaca `PlayerConfig`, `XPConfig`, dan ability modifier config, lalu mengisi HP awal ke `GameState`.
+3. `PlayerController` membaca `PlayerConfig` dan `XPConfig`, lalu menyiapkan `WeaponManager` serta `BuildManager`.
 4. `EnemySpawner` membaca `SpawnerConfig` untuk area spawn dan `DifficultyManager` untuk scaling difficulty.
 5. `DifficultyManager` menghitung progress dari `GameState.run_elapsed_time / GameState.run_target_time`.
 6. `EnemySpawner` memilih enemy dari phase aktif, lalu memberi multiplier HP, damage, dan move speed ke enemy yang baru di-spawn.
@@ -126,8 +124,8 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 11. Saat enemy mati, enemy men-drop `PickupItem` XP sesuai jumlah roll dan weighted value di `EnemyConfig`, lalu dapat men-drop `PickupItem` HP secara random.
 12. `PickupItem` menjalankan semua `PickupEffect` di `PickupConfig.effects`, misalnya `HealPickupEffect`, `AddXpPickupEffect`, atau `ActivateUtilityPickupEffect`.
 13. Jika XP player mencapai target level, `PlayerController` memanggil event `player_level_up`.
-14. `AbilitySelectionScreen` meminta upgrade dari `AbilityPoolConfig`, pause game, menampilkan 3 pilihan upgrade dari data, lalu mengirim pilihan lewat event `ability_selected`.
-15. Player menerapkan ability terpilih, lalu game berjalan kembali.
+14. Selection screen meminta kandidat dari `RewardPoolConfig`, memfilter slot dan compatibility tag, menghitung rarity/weight, lalu menampilkan pilihan.
+15. Player menerapkan `RewardOffer` melalui `BuildManager`, lalu game berjalan kembali.
 16. Sisa XP berlebih dibawa ke level berikutnya, lalu target XP berikutnya dihitung dari `XPConfig`.
 17. `PlayerHud` mendengar event HP, XP, dan survival timer dari `EventBus`.
 18. Jika HP player habis sebelum survival timer selesai, `RunManager` memicu lose state dan `GameOverScreen` muncul.
@@ -143,17 +141,13 @@ Angka gameplay disimpan di resource agar mudah diubah tanpa edit kode:
 - Efek Magnet hanya menarik pickup dengan `PickupConfig.magnetizable = true`; durasi, radius, pull speed, timer, dan batch activation diatur lewat `MagnetComponent` dengan data `MagnetConfig`.
 - Detour pathfinding enemy diatur lewat `EnemyConfig`: `detour_path_enabled`, `detour_obstacle_collision_mask`, `detour_refresh_interval`, `detour_waypoint_margin`, dan `detour_waypoint_reached_distance`.
 - Simple obstacle avoidance enemy tetap menjadi fallback dan diatur lewat `EnemyConfig`: `obstacle_avoidance_enabled`, `obstacle_avoidance_duration`, `obstacle_avoidance_weight`, `obstacle_stuck_time`, dan `obstacle_stuck_min_distance`.
-- Base damage senjata player ada di `WeaponDefinition.base_damage`; upgrade damage runtime dibaca dari `AbilityManager` lewat key modifier seperti `weapon.damage`.
-- Upgrade level up berbasis data `AbilityDefinition`: `id`, `display_name`, `description`, `category`, `rarity`, `trigger`, `icon`, `stackable`, `max_stack`, dan `effects`.
-- Setiap item di `AbilityDefinition.effects` berisi resource `AbilityEffect` dengan `modifier_key`, `value`, `value_type`, dan `stack_mode`; satu ability bisa punya banyak effect.
-- `AbilityManager` menyimpan ability yang sudah dipilih player, menghitung stack/max stack, mengumpulkan `active_effects`, lalu menyediakan `get_flat_modifier(modifier_key)`, `get_percent_modifier(modifier_key)`, dan `apply_modifiers(base_value, modifier_key)`.
-- Weapon/player stat membaca modifier runtime dari `AbilityManager`, bukan langsung dari resource ability.
-- Menambah upgrade stat baru cukup membuat resource `AbilityDefinition`, mengisi satu atau lebih `AbilityEffect` dengan `modifier_key`, lalu memasukkannya ke `default_ability_pool.tres`; UI level up dan logic level up tidak perlu diubah.
-- `AbilityPoolConfig.roll_offers()` memilih upgrade dari pool, sedangkan `AbilitySelectionScreen` hanya merender data upgrade yang diterima.
+- Base damage senjata player ada di `WeaponDefinition.base_damage`; upgrade stat per-weapon disimpan pada `WeaponInstance`.
+- Setiap `WeaponDefinition` memiliki `compatibility_tags` dan daftar configurable `upgrade_options`.
+- `BuildManager` menyimpan talisman, utility, dan modifier global yang tetap difilter berdasarkan tag weapon.
+- `RewardPoolConfig` mengumpulkan kandidat valid dan melakukan roll rarity/weight; selection screen hanya merender `RewardOffer`.
 - Modifier percent memakai pecahan desimal: `0.20` berarti `+20%`, dan `-0.15` berarti pengurangan `15%`.
 - Key modifier yang sudah dipakai antara lain `weapon.damage`, `weapon.cooldown`, `weapon.range`, `weapon.projectile_count`, `weapon.projectile_speed`, `weapon.beam_duration`, `player.max_hp`, dan `player.move_speed`.
-- Rarity multiplier diatur di `AbilityModifierConfig`; contoh damage `0.20` rarity Epic menghasilkan `0.20 * 1.5 = 0.30`.
-- Ability baru bisa dibuat sebagai resource `AbilityDefinition`, lalu dimasukkan ke `default_ability_pool.tres`.
+- Rarity weight dan multiplier diatur di `upgrades/default_reward_pool.tres`.
 - Cooldown weapon memakai `WeaponDefinition.base_cooldown`; modifier cooldown memakai key `weapon.cooldown` dan nilai percent negatif untuk mempercepat serangan.
 - Base damage enemy ada di `EnemyConfig`; scaling damage runtime sekarang berasal dari `DifficultyManager`.
 - Hit feedback enemy diatur lewat `HitFeedbackConfig`; knockback memakai controlled displacement yang di-clamp, bukan physics force bebas.
@@ -181,7 +175,7 @@ Contoh utama saat ini adalah Basic Gun:
 - Base runtime: `res://scripts/gameplay/weapons/WeaponBase.gd`
 - Scene weapon: `res://scenes/weapons/BasicGun.tscn`
 - Resource weapon: `res://resources/weapons/BasicGun.tres`
-- Reward ability: `res://abilities/definitions/weapons/basic_gun_reward.tres`
+- Pool reward: `res://upgrades/default_reward_pool.tres`
 
 #### Struktur file minimal
 
@@ -194,12 +188,7 @@ Untuk weapon baru, buat file berikut:
 - Resource weapon:
   `res://resources/weapons/MyNewWeapon.tres`
 
-Jika weapon dapat diperoleh dari level up, buat juga:
-
-- Reward ability:
-  `res://abilities/definitions/weapons/my_new_weapon_reward.tres`
-- Daftarkan reward tersebut ke:
-  `res://abilities/default_ability_pool.tres`
+Jika weapon dapat diperoleh dari level up, masukkan resource weapon ke `weapon_definitions` pada `res://upgrades/default_reward_pool.tres`.
 
 Catatan transisi: `BasicGun.gd`, `BeamGun.gd`, `AuraWeapon.gd`, dan `KoalisiDadakan.gd` saat ini masih berada langsung di `res://scripts/gameplay/`. Untuk weapon baru, gunakan folder `res://scripts/gameplay/weapons/` agar struktur berikutnya lebih rapi.
 
@@ -332,14 +321,7 @@ Starting weapon adalah pilihan senjata sebelum run dimulai. `Main.gd` mengambil 
 
 Artinya, untuk muncul sebagai starting weapon, weapon baru cukup punya resource valid di `res://resources/weapons/` dengan `id` tidak kosong dan `weapon_scene` terisi.
 
-Weapon reward adalah pilihan level up. Ini tidak otomatis hanya karena resource weapon ada di `resources/weapons/`. Untuk muncul sebagai reward level up:
-
-1. Buat `AbilityDefinition` di `res://abilities/definitions/weapons/my_new_weapon_reward.tres`.
-2. Isi `weapon_definition` dengan `res://resources/weapons/MyNewWeapon.tres`.
-3. Isi `id`, `display_name`, `description`, `rarity`, `stackable`, dan `max_stack`.
-4. Masukkan reward tersebut ke `res://abilities/default_ability_pool.tres`.
-
-Jika reward dipilih dan weapon belum dimiliki, `WeaponManager` menambah weapon baru. Jika weapon sudah dimiliki, reward yang sama menaikkan level weapon selama belum mencapai `max_level`. Jika slot weapon penuh, reward weapon baru tidak ditawarkan oleh `AbilityPoolConfig`.
+Weapon baru harus didaftarkan pada `weapon_definitions` di `res://upgrades/default_reward_pool.tres`. Upgrade weapon berasal dari `upgrade_options` milik resource weapon tersebut, sehingga RNG tidak dapat memilih stat dari jenis weapon lain. Jika empat slot penuh, kandidat weapon baru otomatis dibuang.
 
 #### Checklist pengujian weapon baru
 
@@ -355,6 +337,6 @@ Setelah menambahkan weapon baru, cek:
 - Cooldown berubah sesuai `base_cooldown`, `cooldown_reduction_per_level`, dan modifier `weapon.cooldown`.
 - Range memakai `base_range` dan modifier `weapon.range` jika ada.
 - Jika weapon projectile, projectile count, speed, dan spread dibaca dari `ProjectileWeaponDefinition`.
-- Jika reward level up dibuat, reward muncul dari `default_ability_pool.tres`.
-- Memilih reward weapon yang sama menaikkan level, bukan membuat instance duplikat.
+- Weapon terdaftar muncul dari `default_reward_pool.tres` saat masih ada slot.
+- Upgrade stat yang muncul hanya berasal dari `upgrade_options` weapon yang dimiliki.
 - Saat `max_weapon_slots` penuh, weapon baru tidak ditambahkan.

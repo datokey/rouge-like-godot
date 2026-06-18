@@ -1,21 +1,59 @@
-[gd_resource type="Resource" script_class="ProjectileWeaponDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="ProjectileWeaponDefinition" format=3 uid="uid://uduvap0j5ufu"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/ProjectileWeaponDefinition.gd" id="1_weapon_definition"]
+[ext_resource type="Script" uid="uid://bm1ic4oy0gcvu" path="res://scripts/gameplay/ProjectileWeaponDefinition.gd" id="1_weapon_definition"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/BasicGun.tscn" id="2_basic_gun_scene"]
+[ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="3_upgrade"]
+
+[sub_resource type="Resource" id="Upgrade_damage"]
+script = ExtResource("3_upgrade")
+id = "damage"
+display_name = "Damage"
+modifier_key = &"weapon.damage"
+value = 0.1
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_attack_speed"]
+script = ExtResource("3_upgrade")
+id = "attack_speed"
+display_name = "Attack Speed"
+modifier_key = &"weapon.cooldown"
+value = -0.08
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_projectile_count"]
+script = ExtResource("3_upgrade")
+max_stack = 3
+id = "projectile_count"
+display_name = "Projectile Count"
+modifier_key = &"weapon.projectile_count"
+value = 1.0
+
+[sub_resource type="Resource" id="Upgrade_projectile_speed"]
+script = ExtResource("3_upgrade")
+id = "projectile_speed"
+display_name = "Projectile Speed"
+modifier_key = &"weapon.projectile_speed"
+value = 0.12
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_projectile_size"]
+script = ExtResource("3_upgrade")
+id = "projectile_size"
+display_name = "Projectile Size"
+modifier_key = &"weapon.projectile_size"
+value = 0.15
+value_type = 1
 
 [resource]
 script = ExtResource("1_weapon_definition")
+base_projectile_speed = 520.0
 id = "basic_gun"
 display_name = "Basic Gun"
 description = "Senjata awal yang menembakkan projectile ke musuh terdekat."
 weapon_scene = ExtResource("2_basic_gun_scene")
-base_damage = 10.0
-base_cooldown = 0.25
-base_projectile_count = 1
-base_projectile_speed = 520.0
-base_range = 520.0
-max_level = 5
-damage_per_level = 2.0
-cooldown_reduction_per_level = 0.02
-spread_angle_degrees = 8.0
+compatibility_tags = Array[StringName]([&"PROJECTILE", &"USES_ATTACK_SPEED", &"CAN_CRIT", &"CAN_LIFESTEAL"])
+upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_projectile_count"), SubResource("Upgrade_projectile_speed"), SubResource("Upgrade_projectile_size")])
 supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.projectile_speed"])
+base_cooldown = 0.25
+base_range = 520.0
+cooldown_reduction_per_level = 0.02

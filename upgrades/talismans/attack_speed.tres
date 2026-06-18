@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TalismanDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://upgrades/scripts/TalismanDefinition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "attack_speed"
+display_name = "Attack Speed Talisman"
+description = "Mempercepat serangan weapon yang mendukung attack speed."
+modifier_key = &"weapon.attack_speed"
+value = -0.08
+value_type = 1
+compatibility_tags = Array[StringName]([&"USES_ATTACK_SPEED"])
+

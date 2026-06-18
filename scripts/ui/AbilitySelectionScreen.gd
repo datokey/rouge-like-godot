@@ -1,7 +1,6 @@
 extends Control
 
-@export var ability_pool_config: AbilityPoolConfig
-@export var ability_modifier_config: AbilityModifierConfig
+@export var reward_pool_config: RewardPoolConfig
 
 @onready var level_label: Label = %LevelLabel
 @onready var option_buttons: Array[Button] = [
@@ -12,10 +11,8 @@ extends Control
 
 var pending_level_ups := 0
 var is_selecting := false
-var current_offers: Array[Dictionary] = []
+var current_offers: Array[RewardOffer] = []
 var current_level := 1
-var taken_non_stackable_ids: Array[String] = []
-var taken_ability_counts := {}
 
 
 func _ready() -> void:
@@ -53,27 +50,10 @@ func _show_next_selection() -> void:
 	option_buttons[0].grab_focus()
 
 
-func _roll_offers() -> Array[Dictionary]:
-	var offers: Array[Dictionary] = []
-	if ability_pool_config == null:
-		return offers
-
-	var rolled_abilities := ability_pool_config.roll_offers(
-		option_buttons.size(),
-		taken_non_stackable_ids,
-		taken_ability_counts,
-		_get_offer_context()
-	)
-	for ability in rolled_abilities:
-		var rarity := ability.get_rarity_value()
-		var final_value := ability.get_final_value(ability_modifier_config)
-		offers.append({
-			"ability": ability,
-			"rarity": rarity,
-			"final_value": final_value,
-		})
-
-	return offers
+func _roll_offers() -> Array[RewardOffer]:
+	if reward_pool_config == null:
+		return []
+	return reward_pool_config.roll_offers(_get_offer_context(), option_buttons.size())
 
 
 func _get_offer_context() -> Dictionary:
@@ -81,37 +61,8 @@ func _get_offer_context() -> Dictionary:
 	if player != null and player.has_method("get_reward_offer_context"):
 		var context = player.call("get_reward_offer_context")
 		if typeof(context) == TYPE_DICTIONARY:
-			_apply_local_selection_context(context)
 			return context
-
-	if player != null and player.has_method("get_weapon_offer_context"):
-		var context = player.call("get_weapon_offer_context")
-		if typeof(context) == TYPE_DICTIONARY:
-			_apply_local_selection_context(context)
-			return context
-
-	var context := {
-		"selected_reward_ids": taken_non_stackable_ids.duplicate(),
-		"modifier_stack_counts": taken_ability_counts.duplicate(true),
-	}
-	_apply_local_selection_context(context)
-	return context
-
-
-func _apply_local_selection_context(context: Dictionary) -> void:
-	context["player_level"] = current_level
-	context["selected_reward_counts"] = taken_ability_counts.duplicate(true)
-	var selected_reward_ids: Array = context.get("selected_reward_ids", [])
-	for ability_id in taken_non_stackable_ids:
-		if not selected_reward_ids.has(ability_id):
-			selected_reward_ids.append(ability_id)
-	context["selected_reward_ids"] = selected_reward_ids
-
-	var modifier_stack_counts: Dictionary = context.get("modifier_stack_counts", {})
-	for ability_id in taken_ability_counts.keys():
-		var current_count := int(modifier_stack_counts.get(ability_id, 0))
-		modifier_stack_counts[ability_id] = maxi(current_count, int(taken_ability_counts[ability_id]))
-	context["modifier_stack_counts"] = modifier_stack_counts
+	return {"player_level": current_level}
 
 
 func _refresh_screen() -> void:
@@ -125,16 +76,14 @@ func _refresh_screen() -> void:
 			continue
 
 		var offer := current_offers[index]
-		var ability := offer["ability"] as AbilityDefinition
-		if ability == null:
+		if offer == null:
 			button.hide()
 			button.disabled = true
 			continue
 
-		var rarity := int(offer["rarity"])
 		button.show()
 		button.disabled = false
-		button.text = ability.get_offer_text(ability_modifier_config, rarity)
+		button.text = offer.get_offer_text()
 
 
 func _on_option_pressed(index: int) -> void:
@@ -142,13 +91,7 @@ func _on_option_pressed(index: int) -> void:
 		return
 
 	var offer := current_offers[index]
-	var ability := offer["ability"] as AbilityDefinition
-	if ability != null:
-		taken_ability_counts[ability.id] = int(taken_ability_counts.get(ability.id, 0)) + 1
-		if not ability.stackable and not taken_non_stackable_ids.has(ability.id):
-			taken_non_stackable_ids.append(ability.id)
-
-	EventBus.ability_selected.emit(offer["ability"], int(offer["rarity"]))
+	EventBus.reward_selected.emit(offer)
 	_close_selection()
 
 

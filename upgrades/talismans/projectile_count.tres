@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TalismanDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://upgrades/scripts/TalismanDefinition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "projectile_count"
+display_name = "Projectile Count Talisman"
+description = "Menambah projectile hanya untuk weapon bertipe projectile."
+modifier_key = &"weapon.projectile_count"
+value = 1.0
+max_level = 3
+compatibility_tags = Array[StringName]([&"PROJECTILE"])
+

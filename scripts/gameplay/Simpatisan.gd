@@ -28,7 +28,12 @@ func setup(
 
 	# Distribusikan orbit agar minion-minion tersebar merata mengelilingi player.
 	_orbit_angle = (TAU / 4.0) * float(orbit_index)
-	_attack_elapsed = -randf_range(0.0, weapon_instance.get_summon_attack_cooldown())
+	var rng := get_node_or_null("/root/Rng")
+	_attack_elapsed = -float(rng.call(
+		"range_f",
+		0.0,
+		weapon_instance.get_summon_attack_cooldown()
+	)) if rng != null else 0.0
 	_lifetime_timer = 0.0
 
 
@@ -120,7 +125,9 @@ func _fire_projectile(target: Node2D) -> void:
 				global_position,
 				target_pos,
 				weapon_instance.get_summon_damage(),
-				weapon_instance.get_summon_projectile_speed()
+				weapon_instance.get_summon_projectile_speed(),
+				1.0,
+				weapon_instance
 			)
 
 

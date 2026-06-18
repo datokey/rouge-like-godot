@@ -64,7 +64,7 @@ func _physics_process(delta: float) -> void:
 
 func _start_beam(target: Node2D) -> void:
 	current_target = target
-	_ensure_beam_channels(weapon_instance.get_projectile_count())
+	_ensure_beam_channels(weapon_instance.get_beam_count())
 	beam_elapsed = 0.0
 	damage_tick_timer = 0.0
 	is_beam_active = true
@@ -79,7 +79,7 @@ func _update_active_beam(delta: float) -> void:
 		_finish_beam()
 		return
 
-	_ensure_beam_channels(weapon_instance.get_projectile_count())
+	_ensure_beam_channels(weapon_instance.get_beam_count())
 	_sync_beam_visuals()
 	_update_beam_direction()
 
@@ -188,7 +188,9 @@ func _damage_enemies_in_beam(
 
 		var enemy_id := enemy.get_instance_id()
 		damaged_enemy_ids[enemy_id] = true
-		enemy.call("take_damage", get_damage(), direction, enemy.global_position)
+		var damage := get_damage()
+		enemy.call("take_damage", damage, direction, enemy.global_position)
+		weapon_instance.on_damage_dealt(damage)
 
 
 func _get_owner_collision_rids() -> Array[RID]:

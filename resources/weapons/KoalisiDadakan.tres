@@ -4,18 +4,55 @@
 [ext_resource type="PackedScene" path="res://scenes/weapons/KoalisiDadakan.tscn" id="2_koalisi_dadakan_scene"]
 [ext_resource type="PackedScene" path="res://scenes/entities/Simpatisan.tscn" id="3_simpatisan_scene"]
 [ext_resource type="PackedScene" path="res://scenes/entities/Projectile.tscn" id="4_projectile_scene"]
+[ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="5_upgrade"]
+
+[sub_resource type="Resource" id="Upgrade_summon_count"]
+script = ExtResource("5_upgrade")
+max_stack = 3
+id = "summon_count"
+display_name = "Summon Count"
+modifier_key = &"weapon.summon_count"
+value = 1.0
+
+[sub_resource type="Resource" id="Upgrade_summon_lifetime"]
+script = ExtResource("5_upgrade")
+id = "summon_lifetime"
+display_name = "Summon Lifetime"
+modifier_key = &"weapon.summon_lifetime"
+value = 0.15
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_summon_damage"]
+script = ExtResource("5_upgrade")
+id = "summon_damage"
+display_name = "Summon Damage"
+modifier_key = &"weapon.summon_damage"
+value = 0.12
+value_type = 1
+
+[sub_resource type="Resource" id="Upgrade_summon_attack_speed"]
+script = ExtResource("5_upgrade")
+id = "summon_attack_speed"
+display_name = "Summon Attack Speed"
+modifier_key = &"weapon.summon_attack_cooldown"
+value = -0.1
+value_type = 1
 
 [resource]
 script = ExtResource("1_summon_weapon_definition")
 minion_name = "Simpatisan"
 minion_scene = ExtResource("3_simpatisan_scene")
 minion_projectile_scene = ExtResource("4_projectile_scene")
+minion_damage_multiplier = 0.3
 summon_interval = 5.0
+minion_attack_cooldown = 0.5
 id = "koalisi_dadakan"
 display_name = "Koalisi Dadakan"
 description = "Memanggil Simpatisan yang berjuang bersama player. Setiap Simpatisan akan menembakkan peluru ke musuh terdekat."
 weapon_type = 3
 weapon_scene = ExtResource("2_koalisi_dadakan_scene")
+compatibility_tags = Array[StringName]([&"SUMMON", &"USES_ATTACK_SPEED", &"CAN_CRIT", &"CAN_LIFESTEAL"])
+upgrade_options = Array[Resource]([SubResource("Upgrade_summon_count"), SubResource("Upgrade_summon_lifetime"), SubResource("Upgrade_summon_damage"), SubResource("Upgrade_summon_attack_speed")])
 base_cooldown = 5.0
 base_range = 400.0
 damage_per_level = 3.0

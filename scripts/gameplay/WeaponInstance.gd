@@ -4,13 +4,16 @@ class_name WeaponInstance
 var definition: Resource
 var level := 1
 var owner_node: Node2D
-var ability_manager
+var modifier_manager
+var upgrade_stacks: Dictionary = {}
+var local_flat_modifiers: Dictionary = {}
+var local_percent_modifiers: Dictionary = {}
 
 
-func setup(new_definition: Resource, new_owner_node: Node2D, new_ability_manager, start_level: int = 1) -> void:
+func setup(new_definition: Resource, new_owner_node: Node2D, new_modifier_manager, start_level: int = 1) -> void:
 	definition = new_definition
 	owner_node = new_owner_node
-	ability_manager = new_ability_manager
+	modifier_manager = new_modifier_manager
 	level = maxi(1, start_level)
 
 
@@ -40,14 +43,18 @@ func get_damage() -> int:
 	var base_damage := _get_float("base_damage", 0.0)
 	var damage_per_level := _get_float("damage_per_level", 0.0)
 	var level_bonus := damage_per_level * float(level - 1)
-	return maxi(0, roundi(_apply_modifiers(base_damage + level_bonus, &"weapon.damage")))
+	var damage := maxi(0, roundi(_apply_modifiers(base_damage + level_bonus, &"weapon.damage")))
+	if _roll_critical_hit():
+		damage = roundi(float(damage) * (1.0 + _get_critical_damage()))
+	return damage
 
 
 func get_cooldown() -> float:
 	var base_cooldown := _get_float("base_cooldown", 1.0)
 	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
 	var cooldown := maxf(0.05, base_cooldown - reduction)
-	return maxf(0.05, _apply_modifiers(cooldown, &"weapon.cooldown"))
+	cooldown = _apply_modifiers(cooldown, &"weapon.cooldown")
+	return maxf(0.05, _apply_modifiers(cooldown, &"weapon.attack_speed"))
 
 
 func get_projectile_count() -> int:
@@ -55,6 +62,10 @@ func get_projectile_count() -> int:
 	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
 	var modifier := roundi(_get_flat_modifier(&"weapon.projectile_count"))
 	return maxi(1, base_count + level_bonus + modifier)
+
+
+func get_projectile_size() -> float:
+	return maxf(0.1, _apply_modifiers(1.0, &"weapon.projectile_size"))
 
 
 func get_projectile_speed() -> float:
@@ -68,7 +79,9 @@ func get_attack_range() -> float:
 
 
 func get_summon_cooldown() -> float:
-	return get_cooldown()
+	var base_cooldown := _get_float("base_cooldown", 1.0)
+	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
+	return maxf(0.05, _apply_modifiers(base_cooldown - reduction, &"weapon.summon_cooldown"))
 
 
 func get_summon_max_active() -> int:
@@ -78,7 +91,7 @@ func get_summon_max_active() -> int:
 
 
 func get_summon_lifetime() -> float:
-	return maxf(0.0, _get_float("minion_lifetime", 25.0))
+	return maxf(0.0, _apply_modifiers(_get_float("minion_lifetime", 25.0), &"weapon.summon_lifetime"))
 
 
 func get_summon_damage_multiplier() -> float:
@@ -86,12 +99,14 @@ func get_summon_damage_multiplier() -> float:
 
 
 func get_summon_damage() -> int:
-	return maxi(1, roundi(float(get_damage()) * get_summon_damage_multiplier()))
+	var base_damage := float(get_damage()) * get_summon_damage_multiplier()
+	return maxi(1, roundi(_apply_modifiers(base_damage, &"weapon.summon_damage")))
 
 
 func get_summon_attack_cooldown() -> float:
 	var base_interval := _get_float("minion_attack_cooldown", 1.5)
-	return maxf(0.05, _apply_modifiers(base_interval, &"weapon.cooldown"))
+	var interval := _apply_modifiers(base_interval, &"weapon.summon_attack_cooldown")
+	return maxf(0.05, _apply_modifiers(interval, &"weapon.attack_speed"))
 
 
 func get_summon_projectile_speed() -> float:
@@ -119,12 +134,12 @@ func get_aura_radius() -> float:
 	var base_radius := _get_float("aura_radius", _get_float("base_range", 0.0))
 	var radius_per_level := _get_float("aura_radius_per_level", 0.0)
 	var radius := base_radius + radius_per_level * float(level - 1)
-	return maxf(0.0, _apply_modifiers(radius, &"weapon.range"))
+	return maxf(0.0, _apply_modifiers(radius, &"weapon.aura_radius"))
 
 
 func get_aura_tick_interval() -> float:
 	var base_interval := _get_float("tick_interval", _get_float("base_cooldown", 1.0))
-	return maxf(0.05, base_interval)
+	return maxf(0.05, _apply_modifiers(base_interval, &"weapon.aura_tick_interval"))
 
 
 func get_aura_tick_damage_multiplier() -> float:
@@ -132,7 +147,7 @@ func get_aura_tick_damage_multiplier() -> float:
 
 
 func get_aura_slow_percent() -> float:
-	return clampf(_get_float("slow_percent", 0.0), 0.0, 1.0)
+	return clampf(_apply_modifiers(_get_float("slow_percent", 0.0), &"weapon.aura_slow"), 0.0, 1.0)
 
 
 func get_aura_slow_duration() -> float:
@@ -155,11 +170,17 @@ func get_beam_duration() -> float:
 func get_beam_tick_interval() -> float:
 	var base_interval := _get_float("beam_tick_interval", 0.2)
 	var reduction := _get_float("beam_tick_interval_reduction_per_level", 0.0) * float(level - 1)
-	return maxf(0.03, base_interval - reduction)
+	return maxf(0.03, _apply_modifiers(base_interval - reduction, &"weapon.beam_tick_interval"))
 
 
 func get_beam_width() -> float:
-	return maxf(1.0, _get_float("beam_width", 5.0))
+	return maxf(1.0, _apply_modifiers(_get_float("beam_width", 5.0), &"weapon.beam_width"))
+
+
+func get_beam_count() -> int:
+	var base_count := _get_int("base_projectile_count", 1)
+	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
+	return maxi(1, base_count + level_bonus + roundi(_get_flat_modifier(&"weapon.beam_count")))
 
 
 func get_beam_pierce_count() -> int:
@@ -194,6 +215,37 @@ func get_beam_color() -> Color:
 	return start_color.lerp(end_color, color_progress)
 
 
+func can_apply_stat_upgrade(upgrade: WeaponUpgradeDefinition) -> bool:
+	if upgrade == null or upgrade.id.is_empty():
+		return false
+	return int(upgrade_stacks.get(upgrade.id, 0)) < upgrade.max_stack
+
+
+func apply_stat_upgrade(upgrade: WeaponUpgradeDefinition, rarity_multiplier: float) -> bool:
+	if not can_apply_stat_upgrade(upgrade):
+		return false
+	var modifiers := local_flat_modifiers
+	if upgrade.value_type == ModifierDefinition.ValueType.PERCENT:
+		modifiers = local_percent_modifiers
+	modifiers[upgrade.modifier_key] = float(modifiers.get(upgrade.modifier_key, 0.0)) \
+		+ upgrade.get_scaled_value(rarity_multiplier)
+	upgrade_stacks[upgrade.id] = int(upgrade_stacks.get(upgrade.id, 0)) + 1
+	return true
+
+
+func get_upgrade_stacks() -> Dictionary:
+	return upgrade_stacks.duplicate(true)
+
+
+func on_damage_dealt(amount: int) -> void:
+	if amount <= 0 or owner_node == null or not owner_node.has_method("heal"):
+		return
+	var life_steal := _get_life_steal()
+	if life_steal <= 0.0:
+		return
+	owner_node.call("heal", maxi(1, roundi(float(amount) * life_steal)))
+
+
 func _get_float(property_name: String, fallback: float) -> float:
 	if definition == null:
 		return fallback
@@ -217,14 +269,61 @@ func _get_int(property_name: String, fallback: int) -> int:
 
 
 func _apply_modifiers(base_value: float, modifier_key: StringName) -> float:
-	if ability_manager == null or not ability_manager.has_method("apply_modifiers"):
-		return base_value
-
-	return float(ability_manager.call("apply_modifiers", base_value, modifier_key))
+	var with_local := (base_value + float(local_flat_modifiers.get(modifier_key, 0.0))) \
+		* (1.0 + float(local_percent_modifiers.get(modifier_key, 0.0)))
+	if modifier_manager == null:
+		return with_local
+	if modifier_manager.has_method("apply_weapon_modifiers"):
+		return float(modifier_manager.call(
+			"apply_weapon_modifiers",
+			with_local,
+			modifier_key,
+			_get_compatibility_tags()
+		))
+	if modifier_manager.has_method("apply_modifiers"):
+		return float(modifier_manager.call("apply_modifiers", with_local, modifier_key))
+	return with_local
 
 
 func _get_flat_modifier(modifier_key: StringName) -> float:
-	if ability_manager == null or not ability_manager.has_method("get_flat_modifier"):
-		return 0.0
+	var total := float(local_flat_modifiers.get(modifier_key, 0.0))
+	if modifier_manager == null:
+		return total
+	if modifier_manager.has_method("get_weapon_flat_modifier"):
+		return total + float(modifier_manager.call(
+			"get_weapon_flat_modifier",
+			modifier_key,
+			_get_compatibility_tags()
+		))
+	if modifier_manager.has_method("get_flat_modifier"):
+		return total + float(modifier_manager.call("get_flat_modifier", modifier_key))
+	return total
 
-	return float(ability_manager.call("get_flat_modifier", modifier_key))
+
+func _get_compatibility_tags() -> Array:
+	if definition == null:
+		return []
+	return definition.get("compatibility_tags") as Array
+
+
+func _roll_critical_hit() -> bool:
+	if modifier_manager == null or not modifier_manager.has_method("get_critical_chance"):
+		return false
+	var chance := float(modifier_manager.call("get_critical_chance", _get_compatibility_tags()))
+	if chance <= 0.0:
+		return false
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	var rng := scene_tree.root.get_node_or_null("Rng") if scene_tree != null else null
+	return rng != null and bool(rng.call("chance", chance))
+
+
+func _get_critical_damage() -> float:
+	if modifier_manager == null or not modifier_manager.has_method("get_critical_damage"):
+		return 0.0
+	return float(modifier_manager.call("get_critical_damage", _get_compatibility_tags()))
+
+
+func _get_life_steal() -> float:
+	if modifier_manager == null or not modifier_manager.has_method("get_life_steal"):
+		return 0.0
+	return float(modifier_manager.call("get_life_steal", _get_compatibility_tags()))

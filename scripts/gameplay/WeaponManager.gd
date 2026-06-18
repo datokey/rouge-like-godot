@@ -6,13 +6,13 @@ var weapons: Array[WeaponInstance] = []
 var weapon_nodes: Dictionary[String, WeaponBase] = {}
 var owner_node: Node2D
 var weapon_holder: Node
-var ability_manager
+var modifier_manager
 
 
-func setup(new_owner_node: Node2D, new_weapon_holder: Node, new_ability_manager) -> void:
+func setup(new_owner_node: Node2D, new_weapon_holder: Node, new_modifier_manager) -> void:
 	owner_node = new_owner_node
 	weapon_holder = new_weapon_holder
-	ability_manager = new_ability_manager
+	modifier_manager = new_modifier_manager
 
 
 func add_weapon(weapon_definition: Resource) -> bool:
@@ -29,7 +29,7 @@ func add_weapon(weapon_definition: Resource) -> bool:
 		return false
 
 	var weapon_instance := WeaponInstance.new()
-	weapon_instance.setup(weapon_definition, owner_node, ability_manager)
+	weapon_instance.setup(weapon_definition, owner_node, modifier_manager)
 	if not _spawn_weapon_node(weapon_instance):
 		return false
 
@@ -47,6 +47,17 @@ func upgrade_weapon(weapon_id: String) -> bool:
 		return false
 
 	return weapon_instance.upgrade()
+
+
+func apply_stat_upgrade(
+	weapon_id: String,
+	upgrade: WeaponUpgradeDefinition,
+	rarity_multiplier: float
+) -> bool:
+	var weapon_instance := get_weapon_instance(weapon_id)
+	if weapon_instance == null:
+		return false
+	return weapon_instance.apply_stat_upgrade(upgrade, rarity_multiplier)
 
 
 func can_add_weapon() -> bool:
@@ -81,6 +92,9 @@ func get_offer_context() -> Dictionary:
 	var owned_levels := {}
 	var owned_max_levels := {}
 	var owned_modifier_capabilities := {}
+	var owned_weapon_definitions := {}
+	var weapon_upgrade_stacks := {}
+	var owned_compatibility_tags: Array[StringName] = []
 	for weapon_instance in weapons:
 		var weapon_id: String = weapon_instance.get_weapon_id()
 		owned_weapon_ids.append(weapon_id)
@@ -89,6 +103,12 @@ func get_offer_context() -> Dictionary:
 		owned_modifier_capabilities[weapon_id] = weapon_instance.definition.get(
 			"supported_modifier_keys"
 		)
+		owned_weapon_definitions[weapon_id] = weapon_instance.definition
+		weapon_upgrade_stacks[weapon_id] = weapon_instance.get_upgrade_stacks()
+		var weapon_tags: Array = weapon_instance.definition.get("compatibility_tags")
+		for tag in weapon_tags:
+			if not owned_compatibility_tags.has(tag):
+				owned_compatibility_tags.append(tag)
 
 	return {
 		"can_add_weapon": can_add_weapon(),
@@ -96,6 +116,9 @@ func get_offer_context() -> Dictionary:
 		"owned_weapon_levels": owned_levels,
 		"owned_weapon_max_levels": owned_max_levels,
 		"owned_weapon_modifier_capabilities": owned_modifier_capabilities,
+		"owned_weapon_definitions": owned_weapon_definitions,
+		"weapon_upgrade_stacks": weapon_upgrade_stacks,
+		"owned_compatibility_tags": owned_compatibility_tags,
 		"max_weapon_slots": max_weapon_slots,
 		"used_weapon_slots": weapons.size(),
 		"available_weapon_slots": maxi(0, max_weapon_slots - weapons.size()),

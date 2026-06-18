@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="UtilityDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://upgrades/scripts/UtilityDefinition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "pickup_radius"
+display_name = "Wide Collector"
+description = "Memperluas radius pickup."
+effect_type = 1
+value = 18.0
+max_level = 5
+

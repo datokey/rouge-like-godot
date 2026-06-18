@@ -1,10 +1,9 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/gameplay/PlayerController.gd" id="1_player_controller"]
 [ext_resource type="Resource" path="res://resources/weapons/BasicGun.tres" id="2_starting_weapon"]
 [ext_resource type="Resource" path="res://resources/actors/player_default.tres" id="3_player_config"]
 [ext_resource type="Resource" path="res://resources/xp/default_xp.tres" id="5_xp_config"]
-[ext_resource type="Resource" path="res://abilities/default_ability_modifiers.tres" id="6_ability_modifier_config"]
 [ext_resource type="Resource" path="res://resources/items/magnet_default.tres" id="7_magnet_config"]
 [ext_resource type="Script" path="res://scripts/gameplay/components/MagnetComponent.gd" id="8_magnet_component"]
 
@@ -18,10 +17,9 @@ radius = 36.0
 script = ExtResource("1_player_controller")
 config = ExtResource("3_player_config")
 xp_config = ExtResource("5_xp_config")
-ability_modifier_config = ExtResource("6_ability_modifier_config")
 starting_weapon = ExtResource("2_starting_weapon")
 max_weapon_slots = 4
-max_skill_slots = 2
+max_talisman_slots = 4
 
 [node name="Visual" type="Polygon2D" parent="."]
 color = Color(0.2, 0.75, 1, 1)
@@ -36,8 +34,6 @@ shape = SubResource("RectangleShape2D_player_body")
 shape = SubResource("CircleShape2D_pickup_area")
 
 [node name="WeaponHolder" type="Node2D" parent="."]
-
-[node name="SkillHolder" type="Node2D" parent="."]
 
 [node name="MagnetComponent" type="Node" parent="."]
 script = ExtResource("8_magnet_component")

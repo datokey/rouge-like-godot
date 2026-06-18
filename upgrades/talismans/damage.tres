@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TalismanDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://upgrades/scripts/TalismanDefinition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = "damage"
+display_name = "Damage Talisman"
+description = "Meningkatkan damage weapon yang kompatibel."
+modifier_key = &"weapon.damage"
+value = 0.1
+value_type = 1
+compatibility_tags = Array[StringName]([&"PROJECTILE", &"BEAM", &"AURA", &"SUMMON"])
+

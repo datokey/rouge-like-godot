@@ -5,11 +5,18 @@ const WEAPON_DEFINITION := preload("res://resources/weapons/KoalisiDadakan.tres"
 var _failed := false
 
 
-class TestAbilityManager extends RefCounted:
+class TestModifierManager extends RefCounted:
 	var modifiers := {}
 
 	func apply_modifiers(base_value: float, modifier_key: StringName) -> float:
 		return base_value * (1.0 + float(modifiers.get(modifier_key, 0.0)))
+
+	func apply_weapon_modifiers(
+		base_value: float,
+		modifier_key: StringName,
+		_weapon_tags: Array
+	) -> float:
+		return apply_modifiers(base_value, modifier_key)
 
 	func get_flat_modifier(modifier_key: StringName) -> float:
 		return float(modifiers.get(modifier_key, 0.0))
@@ -29,14 +36,14 @@ func _run() -> void:
 	var weapon_holder := Node2D.new()
 	player.add_child(weapon_holder)
 
-	var ability_manager := TestAbilityManager.new()
+	var modifier_manager := TestModifierManager.new()
 	var definition := WEAPON_DEFINITION.duplicate(true)
 	definition.max_active_minions = 2
 	definition.base_cooldown = 1.0
 	definition.minion_lifetime = 25.0
 
 	var manager := WeaponManager.new()
-	manager.setup(player, weapon_holder, ability_manager)
+	manager.setup(player, weapon_holder, modifier_manager)
 	_assert(manager.add_weapon(definition), "weapon pertama gagal ditambahkan")
 	_assert(manager.add_weapon(definition), "upgrade weapon gagal")
 	_assert(weapon_holder.get_child_count() == 1, "upgrade membuat node weapon duplikat")
@@ -70,10 +77,10 @@ func _run() -> void:
 	definition.minion_lifetime = 1.0
 	_assert(is_equal_approx(snapshot_minion.lifetime, 25.0), "lifetime summon lama bukan snapshot")
 
-	ability_manager.modifiers[&"weapon.damage"] = 1.0
-	ability_manager.modifiers[&"weapon.cooldown"] = -0.5
-	ability_manager.modifiers[&"weapon.range"] = 0.5
-	ability_manager.modifiers[&"weapon.projectile_count"] = 2.0
+	modifier_manager.modifiers[&"weapon.damage"] = 1.0
+	modifier_manager.modifiers[&"weapon.attack_speed"] = -0.5
+	modifier_manager.modifiers[&"weapon.range"] = 0.5
+	modifier_manager.modifiers[&"weapon.projectile_count"] = 2.0
 	_assert(instance.get_summon_damage() == 18, "modifier damage tidak terbaca live")
 	_assert(is_equal_approx(instance.get_summon_attack_cooldown(), 0.75), "attack speed tidak live")
 	_assert(is_equal_approx(instance.get_attack_range(), 600.0), "range tidak live")
@@ -88,7 +95,7 @@ func _run() -> void:
 	var second_holder := Node2D.new()
 	player.add_child(second_holder)
 	var second_manager := WeaponManager.new()
-	second_manager.setup(player, second_holder, ability_manager)
+	second_manager.setup(player, second_holder, modifier_manager)
 	_assert(second_manager.add_weapon(definition), "weapon cleanup player mati gagal dibuat")
 	var second_weapon: KoalisiDadakan = second_holder.get_child(0)
 	second_weapon.set_physics_process(false)

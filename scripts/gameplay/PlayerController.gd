@@ -1,57 +1,47 @@
 extends CharacterBody2D
 
-const AbilityManagerScript = preload("res://abilities/scripts/AbilityManager.gd")
-const AbilityRewardApplierScript = preload("res://abilities/scripts/AbilityRewardApplier.gd")
+const BuildManagerScript = preload("res://upgrades/scripts/BuildManager.gd")
 const WeaponManagerScript = preload("res://scripts/gameplay/WeaponManager.gd")
-const SkillManagerScript = preload("res://scripts/gameplay/SkillManager.gd")
 
 # Semua angka balancing player diambil dari resource agar mudah diubah dari editor.
 @export var config: PlayerConfig
 @export var xp_config: XPConfig
-@export var ability_modifier_config: AbilityModifierConfig
 @export var starting_weapon: Resource
 @export var max_weapon_slots := 4
-@export var max_skill_slots := 0
+@export var max_talisman_slots := 4
 
 @onready var pickup_area_collision: CollisionShape2D = $PickupArea/CollisionShape2D
 @onready var weapon_holder: Node2D = $WeaponHolder
-@onready var skill_holder: Node2D = $SkillHolder
 @onready var magnet_component: Node = $MagnetComponent
 
 var current_hp := 0
 var current_xp := 0
 var current_level := 1
 
-# Modifier runtime disiapkan untuk upgrade tanpa mengubah base config.
-var flat_damage_modifier := 0
-var damage_percent_modifier := 0.0
-var attack_interval_modifier := 0.0
-var attack_speed_percent_modifier := 0.0
-var max_hp_modifier := 0
-var move_speed_modifier := 0.0
-var move_speed_percent_modifier := 0.0
-var projectile_count_modifier := 0
-var ability_manager
+var upgrade_rerolls := 0
+var pickup_radius_bonus := 0.0
+var revive_charges := 0
+var extra_upgrade_choices := 0
+var extra_dash_charges := 0
+var elite_kill_heal := 0.0
+var damage_to_shield_ratio := 0.0
+var utility_max_hp_bonus := 0
+var build_manager: BuildManager
 var weapon_manager
-var skill_manager
-var ability_reward_applier
 
 
 func _ready() -> void:
-	EventBus.ability_selected.connect(_on_ability_selected)
-	ability_manager = AbilityManagerScript.new()
-	ability_manager.setup(ability_modifier_config)
-	ability_reward_applier = AbilityRewardApplierScript.new()
+	EventBus.reward_selected.connect(_on_reward_selected)
+	build_manager = BuildManagerScript.new()
+	build_manager.max_talisman_slots = max_talisman_slots
+	build_manager.setup(self)
 	weapon_manager = WeaponManagerScript.new()
 	weapon_manager.max_weapon_slots = max_weapon_slots
-	weapon_manager.setup(self, weapon_holder, ability_manager)
-	skill_manager = SkillManagerScript.new()
-	skill_manager.max_skill_slots = max_skill_slots
-	skill_manager.setup(self, skill_holder)
+	weapon_manager.setup(self, weapon_holder, build_manager)
 	current_hp = get_max_hp()
 	current_xp = 0
 	current_level = 1
-	_apply_pickup_radius()
+	sync_pickup_radius()
 
 	# GameState menyimpan nilai global, sedangkan EventBus memberi tahu UI.
 	_emit_health_changed()
@@ -90,10 +80,17 @@ func get_nearest_enemy_in_range(attack_range: float) -> Node2D:
 
 
 func take_damage(amount: int) -> void:
-	current_hp = maxi(current_hp - amount, 0)
+	var armor := build_manager.get_armor() if build_manager != null else 0
+	var final_damage := maxi(0, amount - armor)
+	current_hp = maxi(current_hp - final_damage, 0)
 	_emit_health_changed()
 
 	if current_hp <= 0:
+		if revive_charges > 0:
+			revive_charges -= 1
+			current_hp = maxi(1, roundi(float(get_max_hp()) * 0.5))
+			_emit_health_changed()
+			return
 		# Player dimatikan lewat mode global dan signal agar UI/gameplay tidak saling tergantung.
 		RunManager.lose_run()
 		set_physics_process(false)
@@ -131,9 +128,9 @@ func get_move_speed() -> float:
 	if config != null:
 		base_speed = config.move_speed
 
-	var flat_speed := base_speed + move_speed_modifier
-	var percent_bonus := move_speed_percent_modifier + _get_player_move_speed_percent_modifier()
-	return maxf(0.0, flat_speed * (1.0 + percent_bonus))
+	var percent_bonus := build_manager.get_percent_modifier(&"player.move_speed") \
+		if build_manager != null else 0.0
+	return maxf(0.0, base_speed * (1.0 + percent_bonus))
 
 
 func get_max_hp() -> int:
@@ -141,79 +138,12 @@ func get_max_hp() -> int:
 	if config != null:
 		base_max_hp = config.max_hp
 
-	return maxi(1, base_max_hp + max_hp_modifier + _get_player_max_hp_modifier())
+	return maxi(1, base_max_hp + utility_max_hp_bonus)
 
 
-func add_damage_modifier(amount: int) -> void:
-	flat_damage_modifier += amount
-
-
-func set_damage_modifier(value: int) -> void:
-	flat_damage_modifier = value
-
-
-func add_damage_percent_modifier(
-	base_percent: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	return apply_ability_modifier(
-		AbilityModifierConfig.ModifierType.DAMAGE_PERCENT,
-		base_percent,
-		rarity
-	)
-
-
-func add_attack_interval_reduction(interval_reduction: float) -> void:
-	# Attack speed naik berarti jeda tembak berkurang.
-	attack_interval_modifier -= absf(interval_reduction)
-
-
-func set_attack_interval_modifier(value: float) -> void:
-	attack_interval_modifier = value
-
-
-func add_attack_speed_modifier(
-	base_percent: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	return apply_ability_modifier(
-		AbilityModifierConfig.ModifierType.ATTACK_SPEED_PERCENT,
-		base_percent,
-		rarity
-	)
-
-
-func add_max_hp_modifier(
-	base_amount: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	return apply_ability_modifier(
-		AbilityModifierConfig.ModifierType.MAX_HP_FLAT,
-		base_amount,
-		rarity
-	)
-
-
-func add_projectile_count_modifier(
-	base_amount: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	return apply_ability_modifier(
-		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT,
-		base_amount,
-		rarity
-	)
-
-
-func add_move_speed_modifier(
-	base_percent: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	return apply_ability_modifier(
-		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT,
-		base_percent,
-		rarity
-	)
+func increase_current_hp(amount: int) -> void:
+	current_hp = clampi(current_hp + maxi(0, amount), 0, get_max_hp())
+	_emit_health_changed()
 
 
 func activate_magnet() -> void:
@@ -221,47 +151,6 @@ func activate_magnet() -> void:
 		return
 
 	magnet_component.call("activate")
-
-
-func apply_ability_modifier(
-	modifier_type: int,
-	base_value: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	var final_value := calculate_ability_modifier_value(modifier_type, base_value, rarity)
-
-	match modifier_type:
-		AbilityModifierConfig.ModifierType.DAMAGE_PERCENT:
-			damage_percent_modifier += final_value
-		AbilityModifierConfig.ModifierType.ATTACK_SPEED_PERCENT:
-			attack_speed_percent_modifier += final_value
-		AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
-			final_value = float(roundi(final_value))
-			_apply_max_hp_modifier(int(final_value))
-		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
-			final_value = float(roundi(final_value))
-			_apply_projectile_count_modifier(int(final_value))
-		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
-			move_speed_percent_modifier += final_value
-		_:
-			return 0.0
-
-	return final_value
-
-
-func calculate_ability_modifier_value(
-	modifier_type: int,
-	base_value: float = -1.0,
-	rarity: int = AbilityModifierConfig.Rarity.COMMON
-) -> float:
-	var value_to_scale := base_value
-	if value_to_scale < 0.0:
-		value_to_scale = _get_default_modifier_value(modifier_type)
-
-	if ability_modifier_config == null:
-		return value_to_scale
-
-	return ability_modifier_config.calculate_value(value_to_scale, rarity)
 
 
 func get_xp_required_for_next_level() -> int:
@@ -286,66 +175,23 @@ func _sync_xp_state() -> void:
 	GameState.player_level = current_level
 
 
-func _on_ability_selected(ability: Resource, rarity: int) -> void:
-	if ability == null or ability_manager == null:
+func _on_reward_selected(offer: RewardOffer) -> void:
+	if build_manager == null:
 		return
-
-	add_ability_to_manager(ability, rarity)
-
-
-func add_ability_to_manager(ability: Resource, rarity: int) -> bool:
-	var ability_definition := ability as AbilityDefinition
-	if ability_definition == null or ability_manager == null or ability_reward_applier == null:
-		return false
-
-	var max_hp_before := get_max_hp()
-	var added: bool = ability_reward_applier.apply(
-		ability_definition,
-		rarity,
-		ability_manager,
-		weapon_manager,
-		skill_manager
-	)
-	if not added:
-		return false
-
-	var max_hp_after := get_max_hp()
-	if max_hp_after > max_hp_before:
-		current_hp = clampi(current_hp + (max_hp_after - max_hp_before), 0, max_hp_after)
-		_emit_health_changed()
-
-	return true
-
-
-func get_weapon_offer_context() -> Dictionary:
-	return get_reward_offer_context()
+	build_manager.apply_offer(offer, weapon_manager)
 
 
 func get_reward_offer_context() -> Dictionary:
-	var context := {
-		"player_level": current_level,
-		"owned_skill_ids": [],
-		"owned_skill_levels": {},
-		"owned_skill_max_levels": {},
-		"max_skill_slots": max_skill_slots,
-		"used_skill_slots": 0,
-		"available_skill_slots": max_skill_slots,
-		"can_add_skill": false,
-		"skill_manager_active": false,
-		"selected_reward_ids": [],
-		"selected_reward_counts": {},
-		"modifier_stack_counts": {},
-	}
+	var context := {"player_level": current_level}
 
 	if weapon_manager == null:
 		return context
 
 	context.merge(weapon_manager.get_offer_context(), true)
-	if skill_manager != null:
-		context.merge(skill_manager.get_offer_context(), true)
-	if ability_manager != null and ability_manager.has_method("get_ability_stacks"):
-		var stacks: Dictionary = ability_manager.call("get_ability_stacks")
-		context["modifier_stack_counts"] = stacks.duplicate(true)
+	if build_manager != null:
+		context.merge(build_manager.get_offer_context(
+			context.get("owned_compatibility_tags", [])
+		), true)
 
 	return context
 
@@ -364,90 +210,10 @@ func equip_starting_weapon(weapon_definition: Resource = null) -> bool:
 	return weapon_manager.add_weapon(selected_weapon)
 
 
-func _apply_max_hp_modifier(amount: int) -> void:
-	if amount == 0:
-		return
-
-	max_hp_modifier += amount
-	current_hp = clampi(current_hp + amount, 0, get_max_hp())
-	_emit_health_changed()
-
-
-func _apply_projectile_count_modifier(amount: int) -> void:
-	if amount == 0:
-		return
-
-	projectile_count_modifier = maxi(0, projectile_count_modifier + amount)
-
-
-func _get_default_modifier_value(modifier_type: int) -> float:
-	if ability_modifier_config != null:
-		match modifier_type:
-			AbilityModifierConfig.ModifierType.DAMAGE_PERCENT:
-				return ability_modifier_config.default_damage_percent
-			AbilityModifierConfig.ModifierType.ATTACK_SPEED_PERCENT:
-				return ability_modifier_config.default_attack_speed_percent
-			AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
-				return ability_modifier_config.default_max_hp_flat
-			AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
-				return ability_modifier_config.default_projectile_count_flat
-			AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
-				return ability_modifier_config.default_move_speed_percent
-
-	match modifier_type:
-		AbilityModifierConfig.ModifierType.DAMAGE_PERCENT:
-			return 0.05
-		AbilityModifierConfig.ModifierType.ATTACK_SPEED_PERCENT:
-			return 0.15
-		AbilityModifierConfig.ModifierType.MAX_HP_FLAT:
-			return 5.0
-		AbilityModifierConfig.ModifierType.PROJECTILE_COUNT_FLAT:
-			return 1.0
-		AbilityModifierConfig.ModifierType.MOVE_SPEED_PERCENT:
-			return 0.1
-		_:
-			return 0.0
-
-
-func _get_weapon_damage_percent_modifier() -> float:
-	if ability_manager == null:
-		return 0.0
-
-	return ability_manager.get_weapon_damage_percent_modifier()
-
-
-func _get_weapon_attack_speed_percent_modifier() -> float:
-	if ability_manager == null:
-		return 0.0
-
-	return ability_manager.get_weapon_attack_speed_percent_modifier()
-
-
-func _get_weapon_projectile_count_modifier() -> int:
-	if ability_manager == null:
-		return 0
-
-	return roundi(ability_manager.get_weapon_projectile_count_modifier())
-
-
-func _get_player_max_hp_modifier() -> int:
-	if ability_manager == null:
-		return 0
-
-	return roundi(ability_manager.get_player_max_hp_modifier())
-
-
-func _get_player_move_speed_percent_modifier() -> float:
-	if ability_manager == null:
-		return 0.0
-
-	return ability_manager.get_player_move_speed_percent_modifier()
-
-
-func _apply_pickup_radius() -> void:
+func sync_pickup_radius() -> void:
 	if pickup_area_collision == null:
 		return
 
 	var circle_shape := pickup_area_collision.shape as CircleShape2D
 	if circle_shape != null:
-		circle_shape.radius = config.pickup_radius
+		circle_shape.radius = config.pickup_radius + pickup_radius_bonus
