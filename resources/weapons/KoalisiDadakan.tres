@@ -6,40 +6,39 @@
 [ext_resource type="PackedScene" uid="uid://b7jy45bddoyb2" path="res://scenes/entities/Projectile.tscn" id="4_projectile_scene"]
 [ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="5_upgrade"]
 
+[sub_resource type="Resource" id="Upgrade_summon_attack_speed"]
+script = ExtResource("5_upgrade")
+stat_type = 0
+id = "summon_attack_speed"
+display_name = "Summon Attack Speed"
+modifier_key = &"weapon.summon_attack_cooldown"
+
 [sub_resource type="Resource" id="Upgrade_projectile_count"]
 script = ExtResource("5_upgrade")
+stat_type = 3
 id = "minion_projectile_count"
 display_name = "Minion Projectile Count"
 modifier_key = &"weapon.projectile_count"
-stat_type = 3
 
 [sub_resource type="Resource" id="Upgrade_attack_range"]
 script = ExtResource("5_upgrade")
+stat_type = 4
 id = "attack_range"
 display_name = "Minion Attack Range"
 modifier_key = &"weapon.range"
-stat_type = 4
+
+[sub_resource type="Resource" id="Upgrade_pierce"]
+script = ExtResource("5_upgrade")
+stat_type = 5
+id = "pierce"
+display_name = "Minion Projectile Pierce"
+modifier_key = &"weapon.pierce_percent"
 
 [sub_resource type="Resource" id="Upgrade_summon_damage"]
 script = ExtResource("5_upgrade")
 id = "summon_damage"
 display_name = "Summon Damage"
 modifier_key = &"weapon.summon_damage"
-stat_type = 6
-
-[sub_resource type="Resource" id="Upgrade_summon_attack_speed"]
-script = ExtResource("5_upgrade")
-id = "summon_attack_speed"
-display_name = "Summon Attack Speed"
-modifier_key = &"weapon.summon_attack_cooldown"
-stat_type = 0
-
-[sub_resource type="Resource" id="Upgrade_pierce"]
-script = ExtResource("5_upgrade")
-id = "pierce"
-display_name = "Minion Projectile Pierce"
-modifier_key = &"weapon.pierce_percent"
-stat_type = 5
 
 [resource]
 script = ExtResource("1_summon_weapon_definition")
@@ -59,5 +58,3 @@ upgrade_options = Array[Resource]([SubResource("Upgrade_summon_attack_speed"), S
 supported_modifier_keys = Array[StringName]([&"weapon.summon_attack_cooldown", &"weapon.projectile_count", &"weapon.range", &"weapon.pierce_percent", &"weapon.summon_damage"])
 base_cooldown = 5.0
 base_range = 400.0
-damage_per_level = 0.0
-cooldown_reduction_per_level = 0.0

@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="AuraWeaponDefinition" format=3 uid="uid://bxrasw2j4h6jr"]
 
 [ext_resource type="Script" uid="uid://bhag06ljkevr6" path="res://scripts/gameplay/AuraWeaponDefinition.gd" id="1_aura_def"]
-[ext_resource type="PackedScene" path="res://scenes/weapons/AuraWeapon.tscn" id="2_aura_scene"]
+[ext_resource type="PackedScene" uid="uid://d4j4qps72r3m2" path="res://scenes/weapons/AuraWeapon.tscn" id="2_aura_scene"]
 [ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="3_upgrade"]
 
 [sub_resource type="Resource" id="Upgrade_damage"]
@@ -9,21 +9,20 @@ script = ExtResource("3_upgrade")
 id = "damage"
 display_name = "Damage"
 modifier_key = &"weapon.damage"
-stat_type = 6
 
 [sub_resource type="Resource" id="Upgrade_radius"]
 script = ExtResource("3_upgrade")
+stat_type = 7
 id = "radius"
 display_name = "Aura Radius"
 modifier_key = &"weapon.aura_radius"
-stat_type = 7
 
 [sub_resource type="Resource" id="Upgrade_tick_rate"]
 script = ExtResource("3_upgrade")
+stat_type = 0
 id = "tick_rate"
 display_name = "Tick Rate"
 modifier_key = &"weapon.aura_tick_interval"
-stat_type = 0
 
 [resource]
 script = ExtResource("1_aura_def")
@@ -39,4 +38,3 @@ supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.aura_rad
 base_damage = 5.0
 base_cooldown = 0.5
 base_range = 70.0
-cooldown_reduction_per_level = 0.0

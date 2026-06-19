@@ -1,14 +1,14 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://d4j4qps72r3m2"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/AuraWeapon.gd" id="1_aura_weapon"]
+[ext_resource type="Script" uid="uid://niii43gamko7" path="res://scripts/gameplay/AuraWeapon.gd" id="1_aura_weapon"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_aura"]
 radius = 150.0
 
-[node name="AuraWeapon" type="Node2D"]
+[node name="AuraWeapon" type="Node2D" unique_id=1624983279]
 script = ExtResource("1_aura_weapon")
 
-[node name="Hitbox" type="Area2D" parent="."]
+[node name="Hitbox" type="Area2D" parent="." unique_id=148575526]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=1322764572]
 shape = SubResource("CircleShape2D_aura")

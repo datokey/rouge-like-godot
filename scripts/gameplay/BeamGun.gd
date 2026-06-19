@@ -12,6 +12,10 @@ var damage_tick_timer := 0.0
 var is_beam_active := false
 var current_target: Node2D
 var beam_direction := Vector2.RIGHT
+var beam_targets: Array[Node2D] = []
+var beam_lock_elapsed: Array[float] = []
+var beam_out_of_range_elapsed: Array[float] = []
+var retarget_elapsed := 0.0
 var beam_rays: Array[RayCast2D] = []
 var beam_lines: Array[Line2D] = []
 var beam_directions: Array[Vector2] = []
@@ -32,6 +36,10 @@ func _on_weapon_setup() -> void:
 	beam_elapsed = 0.0
 	damage_tick_timer = 0.0
 	is_beam_active = false
+	retarget_elapsed = 0.0
+	beam_targets.clear()
+	beam_lock_elapsed.clear()
+	beam_out_of_range_elapsed.clear()
 	_update_laser_visual(Vector2.ZERO)
 
 	var owner_node := get_owner_node()
@@ -50,6 +58,8 @@ func _physics_process(delta: float) -> void:
 		_update_active_beam(delta)
 		return
 
+	if not beam_targets.is_empty():
+		_update_target_lock_state(delta)
 	_set_beams_visible(false)
 	cooldown_elapsed += delta
 	if cooldown_elapsed < get_cooldown():
@@ -64,7 +74,11 @@ func _physics_process(delta: float) -> void:
 
 func _start_beam(target: Node2D) -> void:
 	current_target = target
-	_ensure_beam_channels(weapon_instance.get_beam_count())
+	var beam_count := weapon_instance.get_beam_count()
+	_ensure_beam_channels(beam_count)
+	_ensure_target_slots(beam_count)
+	retarget_elapsed = 0.0
+	_retarget_missing_slots()
 	beam_elapsed = 0.0
 	damage_tick_timer = 0.0
 	is_beam_active = true
@@ -79,7 +93,14 @@ func _update_active_beam(delta: float) -> void:
 		_finish_beam()
 		return
 
-	_ensure_beam_channels(weapon_instance.get_beam_count())
+	var beam_count := weapon_instance.get_beam_count()
+	_ensure_beam_channels(beam_count)
+	_ensure_target_slots(beam_count)
+	_update_target_lock_state(delta)
+	retarget_elapsed += delta
+	if retarget_elapsed >= weapon_instance.get_beam_retarget_interval():
+		retarget_elapsed = fmod(retarget_elapsed, weapon_instance.get_beam_retarget_interval())
+		_retarget_missing_slots()
 	_sync_beam_visuals()
 	_update_beam_direction()
 
@@ -96,23 +117,19 @@ func _finish_beam() -> void:
 
 
 func _update_beam_direction() -> void:
-	if current_target == null or not is_instance_valid(current_target):
-		current_target = get_nearest_enemy()
-
-	if current_target != null:
-		beam_direction = global_position.direction_to(current_target.global_position)
-
-	if beam_direction.length_squared() <= 0.0:
-		beam_direction = Vector2.RIGHT
-
 	beam_directions.clear()
 	var beam_count := beam_rays.size()
-	var spread_angle := deg_to_rad(weapon_instance.get_spread_angle_degrees())
-	var start_offset := -float(beam_count - 1) * 0.5
 	for index in range(beam_count):
-		var direction := beam_direction.normalized().rotated(
-			(start_offset + float(index)) * spread_angle
-		)
+		var direction := Vector2.ZERO
+		if index < beam_targets.size() and _is_target_alive(beam_targets[index]):
+			direction = global_position.direction_to(beam_targets[index].global_position)
+		if direction.length_squared() <= 0.0:
+			beam_directions.append(Vector2.ZERO)
+			_update_laser_visual_for(beam_lines[index], Vector2.ZERO)
+			beam_lines[index].visible = false
+			continue
+		if index == 0:
+			beam_direction = direction
 		var end_point := direction * get_range()
 		beam_directions.append(direction)
 		_update_laser_visual_for(beam_lines[index], end_point)
@@ -131,19 +148,23 @@ func _update_laser_visual_for(line: Line2D, end_point: Vector2) -> void:
 
 
 func _damage_current_raycast_targets() -> void:
-	var damaged_enemy_ids := {}
 	for index in range(beam_rays.size()):
+		if index >= beam_targets.size() or not _is_target_alive(beam_targets[index]):
+			continue
+		if index >= beam_directions.size() or beam_directions[index].is_zero_approx():
+			continue
+		var damage_result := get_damage_result()
 		_damage_enemies_in_beam(
 			beam_rays[index],
 			beam_directions[index],
-			damaged_enemy_ids
+			damage_result
 		)
 
 
 func _damage_enemies_in_beam(
 	beam_ray: RayCast2D,
 	direction: Vector2,
-	damaged_enemy_ids: Dictionary
+	damage_result: Dictionary
 ) -> void:
 	var beam_range := get_range()
 	var query_shape := RectangleShape2D.new()
@@ -168,9 +189,11 @@ func _damage_enemies_in_beam(
 		var enemy := _resolve_enemy_from_collider(hit.get("collider")) as Node2D
 		if enemy == null:
 			continue
+		if global_position.distance_to(enemy.global_position) > beam_range:
+			continue
 
 		var enemy_id := enemy.get_instance_id()
-		if candidate_ids.has(enemy_id) or damaged_enemy_ids.has(enemy_id):
+		if candidate_ids.has(enemy_id):
 			continue
 
 		candidate_ids[enemy_id] = true
@@ -182,20 +205,108 @@ func _damage_enemies_in_beam(
 	)
 
 	var max_targets := weapon_instance.get_beam_pierce_count()
-	for enemy in candidate_enemies:
-		if max_targets > 0 and damaged_enemy_ids.size() >= max_targets:
+	for target_index in range(candidate_enemies.size()):
+		if max_targets > 0 and target_index >= max_targets:
 			break
 
-		var enemy_id := enemy.get_instance_id()
-		damaged_enemy_ids[enemy_id] = true
-		var damage_result := get_damage_result()
+		var enemy := candidate_enemies[target_index]
+		var damage := roundi(
+			float(damage_result.get("amount", 0))
+			* weapon_instance.get_beam_damage_multiplier(target_index)
+		)
 		weapon_instance.apply_damage(
 			enemy,
-			int(damage_result.get("amount", 0)),
+			maxi(0, damage),
 			direction,
 			enemy.global_position,
 			bool(damage_result.get("is_critical", false))
 		)
+
+
+func _ensure_target_slots(required_count: int) -> void:
+	while beam_targets.size() < required_count:
+		beam_targets.append(null)
+		beam_lock_elapsed.append(0.0)
+		beam_out_of_range_elapsed.append(0.0)
+	while beam_targets.size() > required_count:
+		beam_targets.pop_back()
+		beam_lock_elapsed.pop_back()
+		beam_out_of_range_elapsed.pop_back()
+
+
+func _update_target_lock_state(delta: float) -> void:
+	var release_range := get_range() + weapon_instance.get_beam_lock_range_margin()
+	for index in range(beam_targets.size()):
+		var target := beam_targets[index]
+		if not _is_target_alive(target):
+			_release_target_slot(index)
+			continue
+
+		beam_lock_elapsed[index] += delta
+		if global_position.distance_to(target.global_position) <= release_range:
+			beam_out_of_range_elapsed[index] = 0.0
+			continue
+
+		beam_out_of_range_elapsed[index] += delta
+		if beam_lock_elapsed[index] < weapon_instance.get_beam_minimum_lock_duration():
+			continue
+		if beam_out_of_range_elapsed[index] < weapon_instance.get_beam_out_of_range_grace_time():
+			continue
+		_release_target_slot(index)
+
+
+func _retarget_missing_slots() -> void:
+	for index in range(beam_targets.size()):
+		if _is_target_alive(beam_targets[index]):
+			continue
+		var target := _find_target_for_slot(index, true)
+		if target == null:
+			target = _find_target_for_slot(index, false)
+		if target != null:
+			beam_targets[index] = target
+			beam_lock_elapsed[index] = 0.0
+			beam_out_of_range_elapsed[index] = 0.0
+
+	current_target = beam_targets[0] if not beam_targets.is_empty() else null
+
+
+func _find_target_for_slot(slot_index: int, require_unique: bool) -> Node2D:
+	var nearest: Node2D
+	var nearest_distance := get_range()
+	for node in get_tree().get_nodes_in_group("enemy"):
+		var enemy := node as Node2D
+		if not _is_target_alive(enemy):
+			continue
+		if require_unique and _is_target_locked_by_other_slot(enemy, slot_index):
+			continue
+		var distance := global_position.distance_to(enemy.global_position)
+		if distance > nearest_distance:
+			continue
+		nearest = enemy
+		nearest_distance = distance
+	return nearest
+
+
+func _is_target_locked_by_other_slot(target: Node2D, slot_index: int) -> bool:
+	for index in range(beam_targets.size()):
+		if index != slot_index and beam_targets[index] == target:
+			return true
+	return false
+
+
+func _release_target_slot(index: int) -> void:
+	beam_targets[index] = null
+	beam_lock_elapsed[index] = 0.0
+	beam_out_of_range_elapsed[index] = 0.0
+
+
+func _is_target_alive(target: Variant) -> bool:
+	if target == null or not is_instance_valid(target) or not target.is_inside_tree():
+		return false
+	for property in target.get_property_list():
+		if String(property.get("name", "")) == "is_dead":
+			return not bool(target.get("is_dead"))
+	return true
 
 
 func _get_owner_collision_rids() -> Array[RID]:

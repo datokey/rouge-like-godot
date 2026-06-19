@@ -286,13 +286,34 @@ func get_beam_width() -> float:
 
 
 func get_beam_count() -> int:
-	var base_count := _get_int("base_projectile_count", 1)
+	var base_count := _get_int("base_beam_count", _get_int("base_projectile_count", 1))
 	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
 	return clampi(
 		_apply_count_modifiers(base_count + level_bonus, &"weapon.beam_count"),
 		1,
 		maxi(1, _get_int("max_beam_count", 6))
 	)
+
+
+func get_beam_damage_multiplier(target_index: int) -> float:
+	var falloff := clampf(_get_float("beam_damage_falloff", 0.0), 0.0, 1.0)
+	return pow(1.0 - falloff, maxi(0, target_index))
+
+
+func get_beam_minimum_lock_duration() -> float:
+	return maxf(0.0, _get_float("minimum_lock_duration", 0.35))
+
+
+func get_beam_retarget_interval() -> float:
+	return maxf(0.01, _get_float("retarget_interval", 0.15))
+
+
+func get_beam_out_of_range_grace_time() -> float:
+	return maxf(0.0, _get_float("out_of_range_grace_time", 0.25))
+
+
+func get_beam_lock_range_margin() -> float:
+	return maxf(0.0, _get_float("lock_range_margin", 30.0))
 
 
 func get_pierce_percent() -> float:

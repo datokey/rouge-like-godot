@@ -9,41 +9,46 @@ script = ExtResource("3_upgrade")
 id = "damage"
 display_name = "Damage"
 modifier_key = &"weapon.damage"
-stat_type = 6
 
 [sub_resource type="Resource" id="Upgrade_attack_speed"]
 script = ExtResource("3_upgrade")
+stat_type = 0
 id = "attack_speed"
 display_name = "Attack Speed"
 modifier_key = &"weapon.cooldown"
-stat_type = 0
 
 [sub_resource type="Resource" id="Upgrade_beam_width"]
 script = ExtResource("3_upgrade")
+stat_type = 7
 id = "beam_width"
 display_name = "Beam Width"
 modifier_key = &"weapon.beam_width"
-stat_type = 7
 
 [sub_resource type="Resource" id="Upgrade_beam_length"]
 script = ExtResource("3_upgrade")
+stat_type = 4
 id = "beam_length"
 display_name = "Beam Length"
 modifier_key = &"weapon.range"
-stat_type = 4
 
 [sub_resource type="Resource" id="Upgrade_beam_count"]
 script = ExtResource("3_upgrade")
+stat_type = 2
 id = "beam_count"
 display_name = "Beam Count"
 modifier_key = &"weapon.beam_count"
-stat_type = 2
 
 [resource]
 script = ExtResource("1_weapon_definition")
 beam_duration = 1.1
-beam_duration_per_level = 0.0
 beam_tick_interval = 0.18
+beam_damage_falloff = 0.0
+base_beam_count = 1
+max_beam_count = 6
+minimum_lock_duration = 0.35
+retarget_interval = 0.15
+out_of_range_grace_time = 0.25
+lock_range_margin = 30.0
 beam_color_max_level = 5
 id = "beam_gun"
 display_name = "Beam Gun"
@@ -55,6 +60,4 @@ upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("U
 supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.beam_width", &"weapon.beam_count"])
 base_damage = 4.0
 base_cooldown = 1.4
-base_range = 420.0
-damage_per_level = 0.0
-cooldown_reduction_per_level = 0.0
+base_range = 225.0
