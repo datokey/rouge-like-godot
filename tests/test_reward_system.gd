@@ -84,8 +84,27 @@ func _test_weapon_candidate_filtering() -> void:
 	full_context["weapon_upgrade_stacks"] = {
 		"basic_gun": {}, "beam_gun": {}, "weapon_aura": {}, "koalisi_dadakan": {},
 	}
-	for offer in POOL.get_valid_candidates(full_context):
+	var full_candidates := POOL.get_valid_candidates(full_context)
+	for offer in full_candidates:
 		_assert(offer.category != RewardOffer.Category.WEAPON_NEW, "weapon baru muncul saat empat slot penuh")
+	_assert(
+		_get_candidate_upgrade_ids(full_candidates, "beam_gun") == [
+			"attack_speed", "beam_count", "beam_length", "beam_width", "damage",
+		],
+		"reward pool BeamGun memuat stat di luar konfigurasi"
+	)
+	_assert(
+		_get_candidate_upgrade_ids(full_candidates, "weapon_aura") == [
+			"damage", "radius", "tick_rate",
+		],
+		"reward pool Aura memuat stat di luar konfigurasi"
+	)
+	_assert(
+		_get_candidate_upgrade_ids(full_candidates, "koalisi_dadakan") == [
+			"attack_range", "minion_projectile_count", "pierce", "summon_attack_speed", "summon_damage",
+		],
+		"reward pool Koalisi Dadakan memuat stat di luar konfigurasi"
+	)
 
 	var maxed_context := beam_context.duplicate(true)
 	maxed_context["owned_weapon_levels"] = {"beam_gun": 99}
@@ -103,6 +122,20 @@ func _test_weapon_candidate_filtering() -> void:
 	_assert(_get_upgrade_types(BEAM) == [0, 2, 4, 6, 7], "upgrade_options BeamGun tidak sesuai")
 	_assert(_get_upgrade_types(AURA) == [0, 6, 7], "upgrade_options Aura tidak sesuai")
 	_assert(_get_upgrade_types(SUMMON) == [0, 3, 4, 5, 6], "upgrade_options Koalisi tidak sesuai")
+	_assert(
+		_get_sorted_upgrade_ids(BEAM) == ["attack_speed", "beam_count", "beam_length", "beam_width", "damage"],
+		"ID upgrade BeamGun tidak sesuai"
+	)
+	_assert(
+		_get_sorted_upgrade_ids(AURA) == ["damage", "radius", "tick_rate"],
+		"ID upgrade Aura tidak sesuai"
+	)
+	_assert(
+		_get_sorted_upgrade_ids(SUMMON) == [
+			"attack_range", "minion_projectile_count", "pierce", "summon_attack_speed", "summon_damage",
+		],
+		"ID upgrade Koalisi Dadakan tidak sesuai"
+	)
 
 
 func _test_weapon_level_upgrade_isolation_and_caps() -> void:
@@ -443,6 +476,22 @@ func _get_upgrade_ids(definition: WeaponDefinition) -> Array[String]:
 		var upgrade := resource as WeaponUpgradeDefinition
 		if upgrade != null:
 			ids.append(upgrade.id)
+	return ids
+
+
+func _get_sorted_upgrade_ids(definition: WeaponDefinition) -> Array[String]:
+	var ids := _get_upgrade_ids(definition)
+	ids.sort()
+	return ids
+
+
+func _get_candidate_upgrade_ids(candidates: Array[RewardOffer], weapon_id: String) -> Array[String]:
+	var ids: Array[String] = []
+	for offer in candidates:
+		if offer.category != RewardOffer.Category.WEAPON_UPGRADE or offer.weapon_id != weapon_id:
+			continue
+		ids.append(offer.weapon_upgrade.id)
+	ids.sort()
 	return ids
 
 
