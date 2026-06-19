@@ -111,41 +111,71 @@ func _update_pending_aggregates(delta: float) -> void:
 		_pending_aggregates.remove_at(index)
 
 
-func _show_damage_number(amount: int, is_critical: bool, world_position: Vector2) -> void:
+func _show_damage_number(
+	amount: int,
+	is_critical: bool,
+	world_position: Vector2
+) -> void:
 	var label := _acquire_label()
-	var screen_position := get_viewport().get_canvas_transform() * world_position
 	var random_x := _random_range(-horizontal_offset, horizontal_offset)
+
 	label.text = "%d!" % amount if is_critical else str(amount)
-	label.position = screen_position - label_size * 0.5 + Vector2(random_x, 0.0)
 	label.scale = Vector2.ONE * (0.65 if is_critical else 1.0)
 	label.modulate = Color.WHITE
-	label.add_theme_color_override("font_color", critical_color if is_critical else normal_color)
+	label.add_theme_color_override(
+		"font_color",
+		critical_color if is_critical else normal_color
+	)
 	label.add_theme_font_size_override(
 		"font_size",
 		critical_font_size if is_critical else normal_font_size
 	)
 	label.visible = true
+
 	_active_numbers.append({
 		"label": label,
 		"elapsed": 0.0,
 		"is_critical": is_critical,
+		"world_position": world_position,
+		"visual_offset": Vector2(random_x, 0.0),
 	})
 
 
 func _update_active_numbers(delta: float) -> void:
+	var canvas_transform := get_viewport().get_canvas_transform()
+
 	for index in range(_active_numbers.size() - 1, -1, -1):
 		var entry := _active_numbers[index]
 		var label := entry["label"] as Label
 		var elapsed := float(entry["elapsed"]) + delta
+
 		entry["elapsed"] = elapsed
-		label.position.y -= rise_speed * delta
+
+		var visual_offset: Vector2 = entry["visual_offset"]
+		visual_offset.y -= rise_speed * delta
+		entry["visual_offset"] = visual_offset
+
+		var world_position: Vector2 = entry["world_position"]
+		var screen_position := canvas_transform * world_position
+
+		label.position = (
+			screen_position
+			- label_size * 0.5
+			+ visual_offset
+		)
+
 		var fade_duration := maxf(0.01, display_duration - fade_delay)
-		label.modulate.a = 1.0 - clampf((elapsed - fade_delay) / fade_duration, 0.0, 1.0)
+		label.modulate.a = 1.0 - clampf(
+			(elapsed - fade_delay) / fade_duration,
+			0.0,
+			1.0
+		)
+
 		if bool(entry["is_critical"]):
 			label.scale = Vector2.ONE * _get_critical_scale(elapsed)
-		if elapsed < display_duration:
-			continue
-		_release_number(index)
+
+		if elapsed >= display_duration:
+			_release_number(index)
 
 
 func _get_critical_scale(elapsed: float) -> float:
