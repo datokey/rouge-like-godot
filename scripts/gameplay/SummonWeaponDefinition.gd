@@ -15,4 +15,5 @@ class_name SummonWeaponDefinition
 @export var minion_attack_cooldown := 1.5
 @export var minion_attack_range := 400.0
 @export var minion_projectile_speed := 400.0
+@export_range(1, 100, 1) var max_minion_projectile_count := 8
 @export var minion_orbit_radius := 60.0

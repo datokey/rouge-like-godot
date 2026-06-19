@@ -30,9 +30,12 @@ enum WeaponType {
 @export var base_cooldown: float = 1.0
 @export var base_range: float = 300.0
 
-@export var max_level: int = 5
-@export var damage_per_level: float = 2.0
-@export var cooldown_reduction_per_level: float = 0.03
+@export_range(1, 99, 1) var max_level: int = 99
+@export_range(0.01, 10.0, 0.01) var minimum_fire_interval := 0.05
+@export_range(0.0, 5000.0, 1.0) var max_attack_range := 1200.0
+@export_range(0.0, 10.0, 0.01) var max_pierce_percent := 1.0
+@export var damage_per_level: float = 0.0
+@export var cooldown_reduction_per_level: float = 0.0
 
 
 func get_display_name() -> String:

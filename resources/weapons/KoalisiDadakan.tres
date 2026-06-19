@@ -3,40 +3,43 @@
 [ext_resource type="Script" uid="uid://c0n3kxijfedj2" path="res://scripts/gameplay/SummonWeaponDefinition.gd" id="1_summon_weapon_definition"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/KoalisiDadakan.tscn" id="2_koalisi_dadakan_scene"]
 [ext_resource type="PackedScene" path="res://scenes/entities/Simpatisan.tscn" id="3_simpatisan_scene"]
-[ext_resource type="PackedScene" path="res://scenes/entities/Projectile.tscn" id="4_projectile_scene"]
+[ext_resource type="PackedScene" uid="uid://b7jy45bddoyb2" path="res://scenes/entities/Projectile.tscn" id="4_projectile_scene"]
 [ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="5_upgrade"]
 
-[sub_resource type="Resource" id="Upgrade_summon_count"]
+[sub_resource type="Resource" id="Upgrade_projectile_count"]
 script = ExtResource("5_upgrade")
-max_stack = 3
-id = "summon_count"
-display_name = "Summon Count"
-modifier_key = &"weapon.summon_count"
-value = 1.0
+id = "minion_projectile_count"
+display_name = "Minion Projectile Count"
+modifier_key = &"weapon.projectile_count"
+stat_type = 3
 
-[sub_resource type="Resource" id="Upgrade_summon_lifetime"]
+[sub_resource type="Resource" id="Upgrade_attack_range"]
 script = ExtResource("5_upgrade")
-id = "summon_lifetime"
-display_name = "Summon Lifetime"
-modifier_key = &"weapon.summon_lifetime"
-value = 0.15
-value_type = 1
+id = "attack_range"
+display_name = "Minion Attack Range"
+modifier_key = &"weapon.range"
+stat_type = 4
 
 [sub_resource type="Resource" id="Upgrade_summon_damage"]
 script = ExtResource("5_upgrade")
 id = "summon_damage"
 display_name = "Summon Damage"
 modifier_key = &"weapon.summon_damage"
-value = 0.12
-value_type = 1
+stat_type = 6
 
 [sub_resource type="Resource" id="Upgrade_summon_attack_speed"]
 script = ExtResource("5_upgrade")
 id = "summon_attack_speed"
 display_name = "Summon Attack Speed"
 modifier_key = &"weapon.summon_attack_cooldown"
-value = -0.1
-value_type = 1
+stat_type = 0
+
+[sub_resource type="Resource" id="Upgrade_pierce"]
+script = ExtResource("5_upgrade")
+id = "pierce"
+display_name = "Minion Projectile Pierce"
+modifier_key = &"weapon.pierce_percent"
+stat_type = 5
 
 [resource]
 script = ExtResource("1_summon_weapon_definition")
@@ -52,8 +55,9 @@ description = "Memanggil Simpatisan yang berjuang bersama player. Setiap Simpati
 weapon_type = 3
 weapon_scene = ExtResource("2_koalisi_dadakan_scene")
 compatibility_tags = Array[StringName]([&"SUMMON", &"USES_ATTACK_SPEED", &"CAN_CRIT", &"CAN_LIFESTEAL"])
-upgrade_options = Array[Resource]([SubResource("Upgrade_summon_count"), SubResource("Upgrade_summon_lifetime"), SubResource("Upgrade_summon_damage"), SubResource("Upgrade_summon_attack_speed")])
+upgrade_options = Array[Resource]([SubResource("Upgrade_summon_attack_speed"), SubResource("Upgrade_projectile_count"), SubResource("Upgrade_attack_range"), SubResource("Upgrade_pierce"), SubResource("Upgrade_summon_damage")])
+supported_modifier_keys = Array[StringName]([&"weapon.summon_attack_cooldown", &"weapon.projectile_count", &"weapon.range", &"weapon.pierce_percent", &"weapon.summon_damage"])
 base_cooldown = 5.0
 base_range = 400.0
-damage_per_level = 3.0
-cooldown_reduction_per_level = 0.5
+damage_per_level = 0.0
+cooldown_reduction_per_level = 0.0

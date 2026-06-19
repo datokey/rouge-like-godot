@@ -4,6 +4,7 @@ class_name ProjectileWeaponDefinition
 @export_group("Projectile")
 @export var base_projectile_count: int = 1
 @export var projectile_count_per_level: int = 0
+@export_range(1, 100, 1) var max_projectile_count := 8
 @export var base_projectile_speed: float = 300.0
 @export var projectile_speed_per_level: float = 0.0
 @export_group("Projectile Size")

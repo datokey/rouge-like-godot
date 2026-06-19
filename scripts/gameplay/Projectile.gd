@@ -13,6 +13,8 @@ var has_hit := false
 var speed_override := -1.0
 var source_weapon: WeaponInstance
 var size_multiplier := 1.0
+var remaining_pierce_count := 0
+var hit_enemy_ids: Dictionary = {}
 
 
 func _ready() -> void:
@@ -54,6 +56,8 @@ func setup(
 	source_weapon = new_source_weapon
 	if source_weapon != null:
 		source_weapon.register_damage_source(self)
+		remaining_pierce_count = source_weapon.get_projectile_pierce_count()
+	hit_enemy_ids.clear()
 	# WeaponInstance sudah menerapkan batas size dari WeaponDefinition.
 	size_multiplier = projectile_size
 	_sync_projectile_size()
@@ -83,11 +87,18 @@ func _on_area_entered(area: Area2D) -> void:
 
 	var owner_node := area.get_parent()
 	if owner_node != null and owner_node.is_in_group("enemy") and owner_node.has_method("take_damage"):
-		has_hit = true
+		var enemy_id := owner_node.get_instance_id()
+		if hit_enemy_ids.has(enemy_id):
+			return
+		hit_enemy_ids[enemy_id] = true
 		if source_weapon != null:
 			source_weapon.apply_damage(owner_node, damage, direction, global_position)
-		# Menghindari perubahan state Area2D langsung dari callback area_entered.
-		call_deferred("queue_free")
+		if remaining_pierce_count > 0:
+			remaining_pierce_count -= 1
+		else:
+			has_hit = true
+			# Menghindari perubahan state Area2D langsung dari callback area_entered.
+			call_deferred("queue_free")
 
 
 func _exit_tree() -> void:

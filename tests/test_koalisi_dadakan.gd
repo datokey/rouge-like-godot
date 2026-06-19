@@ -94,6 +94,15 @@ func _run() -> void:
 	)
 	_assert(is_equal_approx(instance.get_attack_range(), 600.0), "range tidak live")
 	_assert(instance.get_projectile_count() == 3, "projectile count tidak live")
+	var pierce_upgrade: WeaponUpgradeDefinition = null
+	for upgrade_resource in definition.upgrade_options:
+		var upgrade := upgrade_resource as WeaponUpgradeDefinition
+		if upgrade != null and upgrade.stat_type == WeaponUpgradeDefinition.StatType.PIERCE:
+			pierce_upgrade = upgrade
+			break
+	_assert(pierce_upgrade != null, "upgrade pierce Koalisi tidak tersedia")
+	_assert(instance.apply_stat_upgrade(pierce_upgrade, 0.10), "upgrade pierce Koalisi gagal")
+	_assert(instance.get_projectile_pierce_count() == 1, "pierce projectile summon tidak tersimpan per weapon")
 
 	var minions_before_cleanup := weapon._active_minions.duplicate()
 	weapon.queue_free()

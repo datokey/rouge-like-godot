@@ -9,6 +9,8 @@ class_name RewardPoolConfig
 @export var rarity_weights: Array[float] = [70.0, 20.0, 7.0, 2.5, 0.5]
 @export var rarity_multipliers: Array[float] = [1.0, 1.15, 1.3, 1.5, 2.0]
 @export var utility_rarity_weight_multipliers: Array[float] = [1.0, 0.7, 0.4, 0.18, 0.06]
+@export var weapon_percent_upgrade_values: Array[float] = [0.02, 0.04, 0.07, 0.10, 0.15]
+@export var weapon_count_upgrade_values: Array[int] = [1, 2, 3, 4, 7]
 
 
 func roll_offers(context: Dictionary, max_offer_count: int) -> Array[RewardOffer]:
@@ -43,18 +45,22 @@ func get_valid_candidates(context: Dictionary) -> Array[RewardOffer]:
 			candidates.append(offer)
 
 	var owned_definitions: Dictionary = context.get("owned_weapon_definitions", {})
-	var upgrade_stacks: Dictionary = context.get("weapon_upgrade_stacks", {})
+	var owned_levels: Dictionary = context.get("owned_weapon_levels", {})
+	var owned_max_levels: Dictionary = context.get("owned_weapon_max_levels", {})
+	var upgrade_availability: Dictionary = context.get("weapon_upgrade_availability", {})
 	for weapon_id_value in owned_weapon_ids:
 		var weapon_id := str(weapon_id_value)
 		var definition := owned_definitions.get(weapon_id) as WeaponDefinition
 		if definition == null:
 			continue
-		var weapon_stacks: Dictionary = upgrade_stacks.get(weapon_id, {})
+		if int(owned_levels.get(weapon_id, 1)) >= int(owned_max_levels.get(weapon_id, definition.max_level)):
+			continue
+		var available_for_weapon: Dictionary = upgrade_availability.get(weapon_id, {})
 		for resource in definition.upgrade_options:
 			var upgrade := resource as WeaponUpgradeDefinition
 			if upgrade == null or upgrade.id.is_empty():
 				continue
-			if int(weapon_stacks.get(upgrade.id, 0)) >= upgrade.max_stack:
+			if available_for_weapon.has(upgrade.id) and not bool(available_for_weapon[upgrade.id]):
 				continue
 			var offer := RewardOffer.new()
 			offer.category = RewardOffer.Category.WEAPON_UPGRADE
@@ -139,6 +145,12 @@ func _roll_rarity(offer: RewardOffer, luck: float) -> void:
 				break
 	offer.rarity = rarity_index as RewardOffer.Rarity
 	offer.rarity_multiplier = rarity_multipliers[rarity_index] if rarity_index < rarity_multipliers.size() else 1.0
+	if offer.category == RewardOffer.Category.WEAPON_UPGRADE and offer.weapon_upgrade != null:
+		offer.weapon_upgrade_value = offer.weapon_upgrade.get_rarity_value(
+			rarity_index,
+			weapon_percent_upgrade_values,
+			weapon_count_upgrade_values
+		)
 
 
 func _assign_offer_rarity(offer: RewardOffer, luck: float) -> void:

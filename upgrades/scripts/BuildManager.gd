@@ -27,7 +27,7 @@ func apply_offer(offer: RewardOffer, weapon_manager: WeaponManager) -> bool:
 			return weapon_manager != null and weapon_manager.apply_stat_upgrade(
 				offer.weapon_id,
 				offer.weapon_upgrade,
-				offer.rarity_multiplier
+				offer.weapon_upgrade_value
 			)
 		RewardOffer.Category.TALISMAN_NEW, RewardOffer.Category.TALISMAN_UPGRADE:
 			return add_talisman(offer.talisman, offer.rarity_multiplier)

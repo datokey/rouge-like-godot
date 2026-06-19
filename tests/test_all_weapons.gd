@@ -97,25 +97,14 @@ func _run() -> void:
 
 	var basic := manager.weapon_nodes.get("basic_gun") as BasicGun
 	var basic_instance := manager.get_weapon_instance("basic_gun")
-	var damage_before_size := basic_instance.get_damage_preview()
-	var cooldown_before_size := basic_instance.get_cooldown()
-	var speed_before_size := basic_instance.get_projectile_speed()
-	var size_upgrade: WeaponUpgradeDefinition
+	var expected_projectile_size := basic_instance.get_projectile_size()
+	var pierce_upgrade: WeaponUpgradeDefinition
 	for upgrade_resource in basic_instance.definition.upgrade_options:
 		var upgrade := upgrade_resource as WeaponUpgradeDefinition
-		if upgrade != null and upgrade.modifier_key == &"weapon.projectile_size":
-			size_upgrade = upgrade
+		if upgrade != null and upgrade.stat_type == WeaponUpgradeDefinition.StatType.PIERCE:
+			pierce_upgrade = upgrade
 			break
-	_assert(size_upgrade != null, "BasicGun tidak memiliki upgrade projectile size")
-	_assert(
-		manager.apply_stat_upgrade("basic_gun", size_upgrade, 1.0),
-		"upgrade projectile size gagal diterapkan"
-	)
-	var expected_projectile_size := basic_instance.get_projectile_size()
-	_assert(expected_projectile_size > 1.0, "projectile size runtime tidak bertambah")
-	_assert(basic_instance.get_damage_preview() == damage_before_size, "projectile size mengubah damage")
-	_assert(is_equal_approx(basic_instance.get_cooldown(), cooldown_before_size), "projectile size mengubah cooldown")
-	_assert(is_equal_approx(basic_instance.get_projectile_speed(), speed_before_size), "projectile size mengubah speed")
+	_assert(manager.apply_stat_upgrade("basic_gun", pierce_upgrade, 0.15), "upgrade Pierce gagal")
 	basic._physics_process(0.0)
 	_assert(_count_projectiles(scene_root) > 0, "BasicGun tidak membuat projectile")
 	var sized_projectile := _get_projectiles(scene_root)[0]
@@ -129,6 +118,16 @@ func _run() -> void:
 		projectile_hitbox.scale.is_equal_approx(projectile_visual.scale),
 		"scale collision projectile berbeda dari visual"
 	)
+	var second_enemy := TestEnemy.new()
+	second_enemy.position = Vector2(80.0, 0.0)
+	scene_root.add_child(second_enemy)
+	var first_enemy_area := enemy.get_child(1) as Area2D
+	var second_enemy_area := second_enemy.get_child(1) as Area2D
+	sized_projectile._on_area_entered(first_enemy_area)
+	_assert(not sized_projectile.has_hit, "projectile Pierce berhenti pada target pertama")
+	sized_projectile._on_area_entered(second_enemy_area)
+	_assert(sized_projectile.has_hit, "projectile tidak berhenti setelah pierce habis")
+	_assert(enemy.damage_events > 0 and second_enemy.damage_events > 0, "projectile Pierce tidak merusak dua target")
 
 	var aura := manager.weapon_nodes.get("weapon_aura") as AuraWeapon
 	var damage_before_aura := enemy.damage_events

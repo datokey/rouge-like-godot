@@ -96,16 +96,18 @@ func get_damage_preview() -> int:
 func get_cooldown() -> float:
 	var base_cooldown := _get_float("base_cooldown", 1.0)
 	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
-	var cooldown := maxf(0.05, base_cooldown - reduction)
+	var minimum_interval := _get_float("minimum_fire_interval", 0.05)
+	var cooldown := maxf(minimum_interval, base_cooldown - reduction)
 	cooldown = _apply_modifiers(cooldown, &"weapon.cooldown")
-	return maxf(0.05, _apply_modifiers(cooldown, &"weapon.attack_speed"))
+	return maxf(minimum_interval, _apply_modifiers(cooldown, &"weapon.attack_speed"))
 
 
 func get_projectile_count() -> int:
 	var base_count := _get_int("base_projectile_count", 1)
 	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
 	var modifier := roundi(_get_flat_modifier(&"weapon.projectile_count"))
-	return maxi(1, base_count + level_bonus + modifier)
+	var max_count := _get_int("max_minion_projectile_count", _get_int("max_projectile_count", 100))
+	return clampi(base_count + level_bonus + modifier, 1, maxi(1, max_count))
 
 
 func get_projectile_size() -> float:
@@ -128,7 +130,8 @@ func get_projectile_speed() -> float:
 
 
 func get_attack_range() -> float:
-	return maxf(0.0, _apply_modifiers(_get_float("base_range", 300.0), &"weapon.range"))
+	var max_range := _get_float("max_attack_range", 1200.0)
+	return clampf(_apply_modifiers(_get_float("base_range", 300.0), &"weapon.range"), 0.0, max_range)
 
 
 func get_summon_cooldown() -> float:
@@ -159,7 +162,8 @@ func get_summon_damage() -> int:
 func get_summon_attack_cooldown() -> float:
 	var base_interval := _get_float("minion_attack_cooldown", 1.5)
 	var interval := _apply_modifiers(base_interval, &"weapon.summon_attack_cooldown")
-	return maxf(0.05, _apply_modifiers(interval, &"weapon.attack_speed"))
+	var minimum_interval := _get_float("minimum_fire_interval", 0.05)
+	return maxf(minimum_interval, _apply_modifiers(interval, &"weapon.attack_speed"))
 
 
 func get_summon_projectile_speed() -> float:
@@ -187,12 +191,19 @@ func get_aura_radius() -> float:
 	var base_radius := _get_float("aura_radius", _get_float("base_range", 0.0))
 	var radius_per_level := _get_float("aura_radius_per_level", 0.0)
 	var radius := base_radius + radius_per_level * float(level - 1)
-	return maxf(0.0, _apply_modifiers(radius, &"weapon.aura_radius"))
+	return clampf(
+		_apply_modifiers(radius, &"weapon.aura_radius"),
+		0.0,
+		_get_float("max_aura_radius", 300.0)
+	)
 
 
 func get_aura_tick_interval() -> float:
 	var base_interval := _get_float("tick_interval", _get_float("base_cooldown", 1.0))
-	return maxf(0.05, _apply_modifiers(base_interval, &"weapon.aura_tick_interval"))
+	return maxf(
+		_get_float("minimum_fire_interval", 0.05),
+		_apply_modifiers(base_interval, &"weapon.aura_tick_interval")
+	)
 
 
 func get_aura_tick_damage_multiplier() -> float:
@@ -227,13 +238,33 @@ func get_beam_tick_interval() -> float:
 
 
 func get_beam_width() -> float:
-	return maxf(1.0, _apply_modifiers(_get_float("beam_width", 5.0), &"weapon.beam_width"))
+	return clampf(
+		_apply_modifiers(_get_float("beam_width", 5.0), &"weapon.beam_width"),
+		1.0,
+		_get_float("max_beam_width", 40.0)
+	)
 
 
 func get_beam_count() -> int:
 	var base_count := _get_int("base_projectile_count", 1)
 	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
-	return maxi(1, base_count + level_bonus + roundi(_get_flat_modifier(&"weapon.beam_count")))
+	return clampi(
+		base_count + level_bonus + roundi(_get_flat_modifier(&"weapon.beam_count")),
+		1,
+		maxi(1, _get_int("max_beam_count", 6))
+	)
+
+
+func get_pierce_percent() -> float:
+	return clampf(
+		_get_flat_modifier(&"weapon.pierce_percent"),
+		0.0,
+		_get_float("max_pierce_percent", 1.0)
+	)
+
+
+func get_projectile_pierce_count() -> int:
+	return maxi(0, floori((get_pierce_percent() + 0.00001) / 0.1))
 
 
 func get_beam_pierce_count() -> int:
@@ -269,25 +300,73 @@ func get_beam_color() -> Color:
 
 
 func can_apply_stat_upgrade(upgrade: WeaponUpgradeDefinition) -> bool:
-	if upgrade == null or upgrade.id.is_empty():
+	if upgrade == null or upgrade.id.is_empty() or not can_upgrade():
 		return false
-	return int(upgrade_stacks.get(upgrade.id, 0)) < upgrade.max_stack
+	return not _has_reached_upgrade_cap(upgrade)
 
 
-func apply_stat_upgrade(upgrade: WeaponUpgradeDefinition, rarity_multiplier: float) -> bool:
+func apply_stat_upgrade(upgrade: WeaponUpgradeDefinition, upgrade_value: float) -> bool:
 	if not can_apply_stat_upgrade(upgrade):
 		return false
-	var modifiers := local_flat_modifiers
-	if upgrade.value_type == ModifierDefinition.ValueType.PERCENT:
-		modifiers = local_percent_modifiers
+	var modifiers := local_percent_modifiers
+	if upgrade.uses_count_value() or upgrade.stat_type == WeaponUpgradeDefinition.StatType.PIERCE:
+		modifiers = local_flat_modifiers
 	modifiers[upgrade.modifier_key] = float(modifiers.get(upgrade.modifier_key, 0.0)) \
-		+ upgrade.get_scaled_value(rarity_multiplier)
+		+ upgrade_value
 	upgrade_stacks[upgrade.id] = int(upgrade_stacks.get(upgrade.id, 0)) + 1
+	level += 1
 	return true
 
 
 func get_upgrade_stacks() -> Dictionary:
 	return upgrade_stacks.duplicate(true)
+
+
+func _has_reached_upgrade_cap(upgrade: WeaponUpgradeDefinition) -> bool:
+	match upgrade.stat_type:
+		WeaponUpgradeDefinition.StatType.FIRE_RATE:
+			return _get_fire_interval(upgrade.modifier_key) <= _get_float("minimum_fire_interval", 0.05) + 0.00001
+		WeaponUpgradeDefinition.StatType.PROJECTILE_COUNT, WeaponUpgradeDefinition.StatType.MINION_PROJECTILE_COUNT:
+			return get_projectile_count() >= _get_int(
+				"max_minion_projectile_count",
+				_get_int("max_projectile_count", 100)
+			)
+		WeaponUpgradeDefinition.StatType.BEAM_COUNT:
+			return get_beam_count() >= _get_int("max_beam_count", 6)
+		WeaponUpgradeDefinition.StatType.ATTACK_RANGE:
+			return get_attack_range() >= _get_float("max_attack_range", 1200.0) - 0.00001
+		WeaponUpgradeDefinition.StatType.PIERCE:
+			return get_pierce_percent() >= _get_float("max_pierce_percent", 1.0) - 0.00001
+		WeaponUpgradeDefinition.StatType.SIZE:
+			return _get_size_stat(upgrade.modifier_key) >= _get_size_cap(upgrade.modifier_key) - 0.00001
+	return false
+
+
+func _get_fire_interval(modifier_key: StringName) -> float:
+	match modifier_key:
+		&"weapon.aura_tick_interval":
+			return get_aura_tick_interval()
+		&"weapon.summon_attack_cooldown":
+			return get_summon_attack_cooldown()
+	return get_cooldown()
+
+
+func _get_size_stat(modifier_key: StringName) -> float:
+	match modifier_key:
+		&"weapon.beam_width":
+			return get_beam_width()
+		&"weapon.aura_radius":
+			return get_aura_radius()
+	return get_projectile_size()
+
+
+func _get_size_cap(modifier_key: StringName) -> float:
+	match modifier_key:
+		&"weapon.beam_width":
+			return _get_float("max_beam_width", 40.0)
+		&"weapon.aura_radius":
+			return _get_float("max_aura_radius", 300.0)
+	return _get_float("max_projectile_size", 10.0)
 
 
 func on_damage_dealt(amount: int) -> void:

@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="BeamWeaponDefinition" format=3 uid="uid://dnew66iaxgnf0"]
 
 [ext_resource type="Script" uid="uid://h787tp5dvcmc" path="res://scripts/gameplay/BeamWeaponDefinition.gd" id="1_weapon_definition"]
-[ext_resource type="PackedScene" path="res://scenes/weapons/BeamGun.tscn" id="2_beam_gun_scene"]
+[ext_resource type="PackedScene" uid="uid://bqlxuhmvgastv" path="res://scenes/weapons/BeamGun.tscn" id="2_beam_gun_scene"]
 [ext_resource type="Script" uid="uid://6lbrueteqscn" path="res://upgrades/scripts/WeaponUpgradeDefinition.gd" id="3_upgrade"]
 
 [sub_resource type="Resource" id="Upgrade_damage"]
@@ -9,53 +9,40 @@ script = ExtResource("3_upgrade")
 id = "damage"
 display_name = "Damage"
 modifier_key = &"weapon.damage"
-value = 0.1
-value_type = 1
+stat_type = 6
 
 [sub_resource type="Resource" id="Upgrade_attack_speed"]
 script = ExtResource("3_upgrade")
 id = "attack_speed"
 display_name = "Attack Speed"
 modifier_key = &"weapon.cooldown"
-value = -0.08
-value_type = 1
+stat_type = 0
 
 [sub_resource type="Resource" id="Upgrade_beam_width"]
 script = ExtResource("3_upgrade")
 id = "beam_width"
 display_name = "Beam Width"
 modifier_key = &"weapon.beam_width"
-value = 0.12
-value_type = 1
+stat_type = 7
 
 [sub_resource type="Resource" id="Upgrade_beam_length"]
 script = ExtResource("3_upgrade")
 id = "beam_length"
 display_name = "Beam Length"
 modifier_key = &"weapon.range"
-value = 0.1
-value_type = 1
+stat_type = 4
 
 [sub_resource type="Resource" id="Upgrade_beam_count"]
 script = ExtResource("3_upgrade")
-max_stack = 3
 id = "beam_count"
 display_name = "Beam Count"
 modifier_key = &"weapon.beam_count"
-value = 1.0
-
-[sub_resource type="Resource" id="Upgrade_tick_rate"]
-script = ExtResource("3_upgrade")
-id = "tick_rate"
-display_name = "Tick Rate"
-modifier_key = &"weapon.beam_tick_interval"
-value = -0.1
-value_type = 1
+stat_type = 2
 
 [resource]
 script = ExtResource("1_weapon_definition")
 beam_duration = 1.1
-beam_duration_per_level = 0.12
+beam_duration_per_level = 0.0
 beam_tick_interval = 0.18
 beam_color_max_level = 5
 id = "beam_gun"
@@ -64,10 +51,10 @@ description = "Mengunci musuh terdekat lalu menyalakan laser yang memberi damage
 weapon_type = 4
 weapon_scene = ExtResource("2_beam_gun_scene")
 compatibility_tags = Array[StringName]([&"BEAM", &"USES_ATTACK_SPEED", &"CAN_CRIT", &"CAN_LIFESTEAL"])
-upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_beam_width"), SubResource("Upgrade_beam_length"), SubResource("Upgrade_beam_count"), SubResource("Upgrade_tick_rate")])
-supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.beam_duration"])
+upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_beam_width"), SubResource("Upgrade_beam_length"), SubResource("Upgrade_beam_count")])
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.beam_width", &"weapon.beam_count"])
 base_damage = 4.0
 base_cooldown = 1.4
-base_range = 480.0
-damage_per_level = 1.0
-cooldown_reduction_per_level = 0.08
+base_range = 420.0
+damage_per_level = 0.0
+cooldown_reduction_per_level = 0.0

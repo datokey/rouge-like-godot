@@ -24,6 +24,7 @@ var weight := 1.0
 var weapon_definition: WeaponDefinition
 var weapon_id := ""
 var weapon_upgrade: WeaponUpgradeDefinition
+var weapon_upgrade_value := 0.0
 var talisman: TalismanDefinition
 var utility: UtilityDefinition
 
@@ -55,7 +56,7 @@ func get_offer_text() -> String:
 				rarity_name,
 				weapon_definition.display_name,
 				weapon_upgrade.display_name,
-				_format_modifier(weapon_upgrade),
+				_format_weapon_upgrade(),
 			]
 		Category.TALISMAN_NEW:
 			return "%s | Talisman Baru\n%s\n%s" % [rarity_name, talisman.display_name, talisman.description]
@@ -92,3 +93,13 @@ func _format_modifier(modifier: ModifierDefinition) -> String:
 			return "+%.0f%% lebih cepat" % (absf(scaled_value) * 100.0)
 		return "%+.0f%%" % (scaled_value * 100.0)
 	return "%+.1f" % scaled_value
+
+
+func _format_weapon_upgrade() -> String:
+	if weapon_upgrade == null:
+		return ""
+	if weapon_upgrade.uses_count_value():
+		return "+%d" % roundi(weapon_upgrade_value)
+	if weapon_upgrade.stat_type == WeaponUpgradeDefinition.StatType.FIRE_RATE:
+		return "+%.0f%% lebih cepat" % (absf(weapon_upgrade_value) * 100.0)
+	return "+%.0f%%" % (weapon_upgrade_value * 100.0)

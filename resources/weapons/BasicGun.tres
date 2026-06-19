@@ -9,40 +9,35 @@ script = ExtResource("3_upgrade")
 id = "damage"
 display_name = "Damage"
 modifier_key = &"weapon.damage"
-value = 0.1
-value_type = 1
+stat_type = 6
 
 [sub_resource type="Resource" id="Upgrade_attack_speed"]
 script = ExtResource("3_upgrade")
 id = "attack_speed"
 display_name = "Attack Speed"
 modifier_key = &"weapon.cooldown"
-value = -0.08
-value_type = 1
+stat_type = 0
 
 [sub_resource type="Resource" id="Upgrade_projectile_count"]
 script = ExtResource("3_upgrade")
-max_stack = 3
 id = "projectile_count"
 display_name = "Projectile Count"
 modifier_key = &"weapon.projectile_count"
-value = 1.0
+stat_type = 1
 
-[sub_resource type="Resource" id="Upgrade_projectile_speed"]
+[sub_resource type="Resource" id="Upgrade_attack_range"]
 script = ExtResource("3_upgrade")
-id = "projectile_speed"
-display_name = "Projectile Speed"
-modifier_key = &"weapon.projectile_speed"
-value = 0.12
-value_type = 1
+id = "attack_range"
+display_name = "Attack Range"
+modifier_key = &"weapon.range"
+stat_type = 4
 
-[sub_resource type="Resource" id="Upgrade_projectile_size"]
+[sub_resource type="Resource" id="Upgrade_pierce"]
 script = ExtResource("3_upgrade")
-id = "projectile_size"
-display_name = "Projectile Size"
-modifier_key = &"weapon.projectile_size"
-value = 0.15
-value_type = 1
+id = "pierce"
+display_name = "Pierce"
+modifier_key = &"weapon.pierce_percent"
+stat_type = 5
 
 [resource]
 script = ExtResource("1_weapon_definition")
@@ -52,7 +47,8 @@ display_name = "Basic Gun"
 description = "Senjata awal yang menembakkan projectile ke musuh terdekat."
 weapon_scene = ExtResource("2_basic_gun_scene")
 compatibility_tags = Array[StringName]([&"PROJECTILE", &"USES_ATTACK_SPEED", &"CAN_CRIT", &"CAN_LIFESTEAL"])
-upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_projectile_count"), SubResource("Upgrade_projectile_speed"), SubResource("Upgrade_projectile_size")])
-supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.projectile_speed", &"weapon.projectile_size"])
+upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_projectile_count"), SubResource("Upgrade_attack_range"), SubResource("Upgrade_pierce")])
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.projectile_count", &"weapon.pierce_percent"])
 base_damage = 20.0
-cooldown_reduction_per_level = 0.002
+damage_per_level = 0.0
+cooldown_reduction_per_level = 0.0

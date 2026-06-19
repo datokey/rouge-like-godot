@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="UtilityDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="UtilityDefinition" format=3 uid="uid://jk6lrbfvp8ru"]
 
-[ext_resource type="Script" path="res://upgrades/scripts/UtilityDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://b70iq72qhv3ww" path="res://upgrades/scripts/UtilityDefinition.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
@@ -11,4 +11,3 @@ rarity = 2
 effect_type = 7
 value = 10.0
 max_stack = 0
-weight = 1.0

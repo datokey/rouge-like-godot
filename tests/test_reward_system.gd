@@ -25,6 +25,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	_test_weapon_candidate_filtering()
+	_test_weapon_level_upgrade_isolation_and_caps()
 	_test_talisman_slot_and_compatibility_filtering()
 	_test_modifier_scope()
 	_test_utility_collection()
@@ -85,13 +86,78 @@ func _test_weapon_candidate_filtering() -> void:
 		_assert(offer.category != RewardOffer.Category.WEAPON_NEW, "weapon baru muncul saat empat slot penuh")
 
 	var maxed_context := beam_context.duplicate(true)
-	var maxed_stacks := {}
-	for resource in BEAM.upgrade_options:
-		var upgrade := resource as WeaponUpgradeDefinition
-		maxed_stacks[upgrade.id] = upgrade.max_stack
-	maxed_context["weapon_upgrade_stacks"] = {"beam_gun": maxed_stacks}
+	maxed_context["owned_weapon_levels"] = {"beam_gun": 99}
+	maxed_context["owned_weapon_max_levels"] = {"beam_gun": 99}
 	for offer in POOL.get_valid_candidates(maxed_context):
 		_assert(offer.category != RewardOffer.Category.WEAPON_UPGRADE, "upgrade maksimal masih berada di pool")
+
+	_assert(_get_upgrade_types(BASIC) == [0, 1, 4, 5, 6], "upgrade_options BasicGun tidak sesuai")
+	_assert(_get_upgrade_types(BEAM) == [0, 2, 4, 6, 7], "upgrade_options BeamGun tidak sesuai")
+	_assert(_get_upgrade_types(AURA) == [0, 6, 7], "upgrade_options Aura tidak sesuai")
+	_assert(_get_upgrade_types(SUMMON) == [0, 3, 4, 5, 6], "upgrade_options Koalisi tidak sesuai")
+
+
+func _test_weapon_level_upgrade_isolation_and_caps() -> void:
+	var scene_root := Node2D.new()
+	root.add_child(scene_root)
+	current_scene = scene_root
+	var player := TestPlayer.new()
+	scene_root.add_child(player)
+	var holder := Node2D.new()
+	player.add_child(holder)
+	var build := BuildManager.new()
+	build.setup(player)
+	var manager := WeaponManager.new()
+	manager.setup(player, holder, build)
+	_assert(manager.add_weapon(BASIC), "BasicGun gagal dibuat untuk test level")
+	_assert(manager.add_weapon(BEAM), "BeamGun gagal dibuat untuk test isolasi")
+
+	var basic := manager.get_weapon_instance("basic_gun")
+	var beam := manager.get_weapon_instance("beam_gun")
+	var basic_damage_before := basic.get_damage_preview()
+	var beam_damage_before := beam.get_damage_preview()
+	var damage_upgrade := _find_weapon_upgrade(BASIC, WeaponUpgradeDefinition.StatType.DAMAGE)
+	_assert(manager.apply_stat_upgrade("basic_gun", damage_upgrade, 0.15), "upgrade damage BasicGun gagal")
+	_assert(basic.level == 2, "level BasicGun tidak bertambah")
+	_assert(beam.level == 1, "level BeamGun ikut berubah")
+	_assert(basic.get_damage_preview() > basic_damage_before, "damage BasicGun tidak bertambah")
+	_assert(beam.get_damage_preview() == beam_damage_before, "modifier BasicGun bocor ke BeamGun")
+
+	var count_upgrade := _find_weapon_upgrade(BASIC, WeaponUpgradeDefinition.StatType.PROJECTILE_COUNT)
+	while basic.can_apply_stat_upgrade(count_upgrade):
+		_assert(manager.apply_stat_upgrade("basic_gun", count_upgrade, 7.0), "upgrade projectile count gagal")
+	_assert(basic.get_projectile_count() == int(BASIC.max_projectile_count), "projectile count melewati cap")
+	_assert(not basic.can_apply_stat_upgrade(count_upgrade), "projectile count cap masih ditawarkan")
+	var offer_context := manager.get_offer_context()
+	var basic_availability: Dictionary = offer_context["weapon_upgrade_availability"]["basic_gun"]
+	_assert(
+		not bool(basic_availability[count_upgrade.id]),
+		"projectile count yang mencapai cap masih ditandai valid untuk reward"
+	)
+	for offer in POOL.get_valid_candidates(offer_context):
+		_assert(
+			not (
+				offer.category == RewardOffer.Category.WEAPON_UPGRADE
+				and offer.weapon_id == "basic_gun"
+				and offer.weapon_upgrade.id == count_upgrade.id
+			),
+			"projectile count yang mencapai cap masih masuk reward pool"
+		)
+
+	var pierce_definition := BASIC.duplicate(true) as WeaponDefinition
+	var pierce_instance := WeaponInstance.new()
+	pierce_instance.setup(pierce_definition, player, build)
+	var pierce_upgrade := _find_weapon_upgrade(BASIC, WeaponUpgradeDefinition.StatType.PIERCE)
+	_assert(pierce_instance.apply_stat_upgrade(pierce_upgrade, 0.02), "Pierce Common gagal")
+	_assert(pierce_instance.get_projectile_pierce_count() == 0, "Pierce 2% salah dikonversi")
+	_assert(pierce_instance.apply_stat_upgrade(pierce_upgrade, 0.07), "Pierce Rare gagal")
+	_assert(pierce_instance.get_projectile_pierce_count() == 0, "Pierce 9% salah dikonversi")
+	_assert(pierce_instance.apply_stat_upgrade(pierce_upgrade, 0.02), "Pierce Common kedua gagal")
+	_assert(pierce_instance.get_projectile_pierce_count() == 1, "Pierce 11% tidak menjadi satu pierce")
+
+	var max_level_instance := WeaponInstance.new()
+	max_level_instance.setup(BASIC, player, build, 99)
+	_assert(not max_level_instance.can_apply_stat_upgrade(damage_upgrade), "weapon level 99 masih dapat upgrade")
 
 
 func _test_talisman_slot_and_compatibility_filtering() -> void:
@@ -164,6 +230,17 @@ func _test_controlled_rng_and_fallback() -> void:
 	for index in range(first_roll.size()):
 		_assert(first_roll[index].get_unique_id() == second_roll[index].get_unique_id(), "seed yang sama menghasilkan reward berbeda")
 		_assert(first_roll[index].rarity == second_roll[index].rarity, "seed yang sama menghasilkan rarity berbeda")
+		if first_roll[index].category == RewardOffer.Category.WEAPON_UPGRADE:
+			var upgrade_offer := first_roll[index]
+			var expected_value := upgrade_offer.weapon_upgrade.get_rarity_value(
+				int(upgrade_offer.rarity),
+				POOL.weapon_percent_upgrade_values,
+				POOL.weapon_count_upgrade_values
+			)
+			_assert(
+				is_equal_approx(upgrade_offer.weapon_upgrade_value, expected_value),
+				"nilai upgrade weapon tidak sesuai rarity"
+			)
 
 	var empty_context := {
 		"owned_weapon_ids": [],
@@ -224,6 +301,27 @@ func _find_utility(utility_id: String) -> UtilityDefinition:
 		if utility != null and utility.id == utility_id:
 			return utility
 	return null
+
+
+func _find_weapon_upgrade(
+	definition: WeaponDefinition,
+	stat_type: WeaponUpgradeDefinition.StatType
+) -> WeaponUpgradeDefinition:
+	for resource in definition.upgrade_options:
+		var upgrade := resource as WeaponUpgradeDefinition
+		if upgrade != null and upgrade.stat_type == stat_type:
+			return upgrade
+	return null
+
+
+func _get_upgrade_types(definition: WeaponDefinition) -> Array[int]:
+	var types: Array[int] = []
+	for resource in definition.upgrade_options:
+		var upgrade := resource as WeaponUpgradeDefinition
+		if upgrade != null:
+			types.append(int(upgrade.stat_type))
+	types.sort()
+	return types
 
 
 func _assert(condition: bool, message: String) -> void:

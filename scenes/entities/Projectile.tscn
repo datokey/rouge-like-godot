@@ -1,20 +1,20 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://b7jy45bddoyb2"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/Projectile.gd" id="1_projectile"]
+[ext_resource type="Script" uid="uid://cmr6n2fi01ssc" path="res://scripts/gameplay/Projectile.gd" id="1_projectile"]
 [ext_resource type="Resource" path="res://resources/projectiles/player_projectile.tres" id="2_projectile_config"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_projectile"]
 radius = 5.0
 
-[node name="Projectile" type="Node2D"]
+[node name="Projectile" type="Node2D" unique_id=1636867141]
 script = ExtResource("1_projectile")
 config = ExtResource("2_projectile_config")
 
-[node name="Visual" type="Polygon2D" parent="."]
+[node name="Visual" type="Polygon2D" parent="." unique_id=2085721234]
 color = Color(1, 0.82, 0.18, 1)
 polygon = PackedVector2Array(-6, -4, 8, 0, -6, 4)
 
-[node name="Hitbox" type="Area2D" parent="."]
+[node name="Hitbox" type="Area2D" parent="." unique_id=549643111]
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox"]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hitbox" unique_id=284904662]
 shape = SubResource("CircleShape2D_projectile")
