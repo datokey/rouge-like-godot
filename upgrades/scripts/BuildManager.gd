@@ -8,6 +8,7 @@ var max_talisman_slots := 4
 var owner_node: Node
 var talisman_levels: Dictionary = {}
 var talisman_definitions: Dictionary = {}
+var talisman_bonus_totals: Dictionary = {}
 var utility_stacks: Dictionary = {}
 var utility_definitions: Dictionary = {}
 var active_modifiers: Array[Dictionary] = []
@@ -30,13 +31,13 @@ func apply_offer(offer: RewardOffer, weapon_manager: WeaponManager) -> bool:
 				offer.weapon_upgrade_value
 			)
 		RewardOffer.Category.TALISMAN_NEW, RewardOffer.Category.TALISMAN_UPGRADE:
-			return add_talisman(offer.talisman, offer.rarity_multiplier)
+			return add_talisman(offer.talisman, offer.talisman_upgrade_value)
 		RewardOffer.Category.UTILITY:
 			return add_utility(offer.utility)
 	return false
 
 
-func add_talisman(talisman: TalismanDefinition, rarity_multiplier: float) -> bool:
+func add_talisman(talisman: TalismanDefinition, upgrade_value: float) -> bool:
 	if talisman == null or talisman.id.is_empty():
 		return false
 	var current_level := int(talisman_levels.get(talisman.id, 0))
@@ -44,12 +45,20 @@ func add_talisman(talisman: TalismanDefinition, rarity_multiplier: float) -> boo
 		return false
 	if current_level >= talisman.max_level:
 		return false
+	var current_bonus := float(talisman_bonus_totals.get(talisman.id, 0.0))
+	if talisman.is_bonus_capped(current_bonus):
+		return false
+	var new_bonus := talisman.clamp_total_bonus(current_bonus + upgrade_value)
+	var applied_value := new_bonus - current_bonus
+	if is_zero_approx(applied_value):
+		return false
 
 	talisman_levels[talisman.id] = current_level + 1
 	talisman_definitions[talisman.id] = talisman
+	talisman_bonus_totals[talisman.id] = new_bonus
 	active_modifiers.append({
 		"modifier_key": talisman.modifier_key,
-		"value": talisman.get_scaled_value(rarity_multiplier),
+		"value": applied_value,
 		"value_type": talisman.value_type,
 		"compatibility_tags": talisman.compatibility_tags.duplicate(),
 	})
@@ -76,6 +85,10 @@ func apply_weapon_modifiers(base_value: float, modifier_key: StringName, weapon_
 	var flat := _get_modifier_value(modifier_key, ModifierDefinition.ValueType.FLAT, weapon_tags, true)
 	var percent := _get_modifier_value(modifier_key, ModifierDefinition.ValueType.PERCENT, weapon_tags, true)
 	return (base_value + flat) * (1.0 + percent)
+
+
+func get_weapon_talisman_percent_modifier(modifier_key: StringName, weapon_tags: Array) -> float:
+	return _get_modifier_value(modifier_key, ModifierDefinition.ValueType.PERCENT, weapon_tags, true)
 
 
 func get_weapon_flat_modifier(modifier_key: StringName, weapon_tags: Array) -> float:
@@ -131,6 +144,7 @@ func get_offer_context(owned_weapon_tags: Array) -> Dictionary:
 		"available_talisman_slots": maxi(0, max_talisman_slots - talisman_levels.size()),
 		"can_add_talisman": can_add_talisman(),
 		"owned_talisman_levels": talisman_levels.duplicate(true),
+		"owned_talisman_bonuses": talisman_bonus_totals.duplicate(true),
 		"owned_compatibility_tags": owned_weapon_tags.duplicate(),
 		"utility_stacks": utility_stacks.duplicate(true),
 		"luck": get_luck(),

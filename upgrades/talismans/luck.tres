@@ -9,4 +9,4 @@ display_name = "Luck Talisman"
 description = "Meningkatkan peluang mendapatkan rarity tinggi."
 modifier_key = &"meta.luck"
 value = 0.1
-
+total_bonus_cap = 5.0

@@ -9,4 +9,5 @@ display_name = "Armor Talisman"
 description = "Mengurangi damage yang diterima player."
 modifier_key = &"player.armor"
 value = 2.0
-
+rarity_value_scale = 100.0
+total_bonus_cap = 100.0

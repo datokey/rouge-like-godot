@@ -98,16 +98,22 @@ func get_cooldown() -> float:
 	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
 	var minimum_interval := _get_float("minimum_fire_interval", 0.05)
 	var cooldown := maxf(minimum_interval, base_cooldown - reduction)
-	cooldown = _apply_modifiers(cooldown, &"weapon.cooldown")
-	return maxf(minimum_interval, _apply_modifiers(cooldown, &"weapon.attack_speed"))
+	return maxf(minimum_interval, _apply_modifiers_with_talisman_alias(
+		cooldown,
+		&"weapon.cooldown",
+		&"weapon.attack_speed"
+	))
 
 
 func get_projectile_count() -> int:
 	var base_count := _get_int("base_projectile_count", 1)
 	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
-	var modifier := roundi(_get_flat_modifier(&"weapon.projectile_count"))
 	var max_count := _get_int("max_minion_projectile_count", _get_int("max_projectile_count", 100))
-	return clampi(base_count + level_bonus + modifier, 1, maxi(1, max_count))
+	return clampi(
+		_apply_count_modifiers(base_count + level_bonus, &"weapon.projectile_count"),
+		1,
+		maxi(1, max_count)
+	)
 
 
 func get_projectile_size() -> float:
@@ -142,8 +148,7 @@ func get_summon_cooldown() -> float:
 
 func get_summon_max_active() -> int:
 	var base_count := _get_int("max_active_minions", 1)
-	var modifier := roundi(_get_flat_modifier(&"weapon.summon_count"))
-	return maxi(0, base_count + modifier)
+	return maxi(0, _apply_count_modifiers(base_count, &"weapon.summon_count"))
 
 
 func get_summon_lifetime() -> float:
@@ -161,9 +166,12 @@ func get_summon_damage() -> int:
 
 func get_summon_attack_cooldown() -> float:
 	var base_interval := _get_float("minion_attack_cooldown", 1.5)
-	var interval := _apply_modifiers(base_interval, &"weapon.summon_attack_cooldown")
 	var minimum_interval := _get_float("minimum_fire_interval", 0.05)
-	return maxf(minimum_interval, _apply_modifiers(interval, &"weapon.attack_speed"))
+	return maxf(minimum_interval, _apply_modifiers_with_talisman_alias(
+		base_interval,
+		&"weapon.summon_attack_cooldown",
+		&"weapon.attack_speed"
+	))
 
 
 func get_summon_projectile_speed() -> float:
@@ -249,7 +257,7 @@ func get_beam_count() -> int:
 	var base_count := _get_int("base_projectile_count", 1)
 	var level_bonus := _get_int("projectile_count_per_level", 0) * (level - 1)
 	return clampi(
-		base_count + level_bonus + roundi(_get_flat_modifier(&"weapon.beam_count")),
+		_apply_count_modifiers(base_count + level_bonus, &"weapon.beam_count"),
 		1,
 		maxi(1, _get_int("max_beam_count", 6))
 	)
@@ -401,8 +409,25 @@ func _get_int(property_name: String, fallback: int) -> int:
 
 
 func _apply_modifiers(base_value: float, modifier_key: StringName) -> float:
-	var with_local := (base_value + float(local_flat_modifiers.get(modifier_key, 0.0))) \
-		* (1.0 + float(local_percent_modifiers.get(modifier_key, 0.0)))
+	var local_flat := float(local_flat_modifiers.get(modifier_key, 0.0))
+	var local_percent := float(local_percent_modifiers.get(modifier_key, 0.0))
+	# Weapon dan Talisman sama-sama dihitung dari base stat. Dengan demikian
+	# 100 +20% weapon +10% Talisman = 130, bukan 132.
+	if modifier_manager != null \
+			and modifier_manager.has_method("get_weapon_talisman_percent_modifier"):
+		var talisman_flat := float(modifier_manager.call(
+			"get_weapon_flat_modifier",
+			modifier_key,
+			_get_compatibility_tags()
+		))
+		var talisman_percent := float(modifier_manager.call(
+			"get_weapon_talisman_percent_modifier",
+			modifier_key,
+			_get_compatibility_tags()
+		))
+		return base_value + local_flat + talisman_flat \
+			+ base_value * (local_percent + talisman_percent)
+	var with_local := (base_value + local_flat) * (1.0 + local_percent)
 	if modifier_manager == null:
 		return with_local
 	if modifier_manager.has_method("apply_weapon_modifiers"):
@@ -415,6 +440,33 @@ func _apply_modifiers(base_value: float, modifier_key: StringName) -> float:
 	if modifier_manager.has_method("apply_modifiers"):
 		return float(modifier_manager.call("apply_modifiers", with_local, modifier_key))
 	return with_local
+
+
+func _apply_modifiers_with_talisman_alias(
+	base_value: float,
+	weapon_modifier_key: StringName,
+	talisman_modifier_key: StringName
+) -> float:
+	if modifier_manager != null \
+			and modifier_manager.has_method("get_weapon_talisman_percent_modifier"):
+		var local_flat := float(local_flat_modifiers.get(weapon_modifier_key, 0.0))
+		var local_percent := float(local_percent_modifiers.get(weapon_modifier_key, 0.0))
+		var talisman_flat := float(modifier_manager.call(
+			"get_weapon_flat_modifier",
+			talisman_modifier_key,
+			_get_compatibility_tags()
+		))
+		var talisman_percent := float(modifier_manager.call(
+			"get_weapon_talisman_percent_modifier",
+			talisman_modifier_key,
+			_get_compatibility_tags()
+		))
+		return base_value + local_flat + talisman_flat \
+			+ base_value * (local_percent + talisman_percent)
+
+	# Compatibility untuk modifier manager lama/custom.
+	var with_weapon := _apply_modifiers(base_value, weapon_modifier_key)
+	return _apply_modifiers(with_weapon, talisman_modifier_key)
 
 
 func _get_flat_modifier(modifier_key: StringName) -> float:
@@ -430,6 +482,26 @@ func _get_flat_modifier(modifier_key: StringName) -> float:
 	if modifier_manager.has_method("get_flat_modifier"):
 		return total + float(modifier_manager.call("get_flat_modifier", modifier_key))
 	return total
+
+
+func _apply_count_modifiers(base_count: int, modifier_key: StringName) -> int:
+	var local_flat := float(local_flat_modifiers.get(modifier_key, 0.0))
+	var local_percent := float(local_percent_modifiers.get(modifier_key, 0.0))
+	if modifier_manager != null \
+			and modifier_manager.has_method("get_weapon_talisman_percent_modifier"):
+		var talisman_flat := float(modifier_manager.call(
+			"get_weapon_flat_modifier",
+			modifier_key,
+			_get_compatibility_tags()
+		))
+		var talisman_percent := float(modifier_manager.call(
+			"get_weapon_talisman_percent_modifier",
+			modifier_key,
+			_get_compatibility_tags()
+		))
+		return roundi(float(base_count) + local_flat + talisman_flat \
+			+ float(base_count) * (local_percent + talisman_percent))
+	return roundi(float(base_count) + _get_flat_modifier(modifier_key))
 
 
 func _get_compatibility_tags() -> Array:

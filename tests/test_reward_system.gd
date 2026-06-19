@@ -27,6 +27,7 @@ func _run() -> void:
 	_test_weapon_candidate_filtering()
 	_test_weapon_level_upgrade_isolation_and_caps()
 	_test_talisman_slot_and_compatibility_filtering()
+	_test_talisman_rarity_level_and_additive_formula()
 	_test_modifier_scope()
 	_test_utility_collection()
 	_test_controlled_rng_and_fallback()
@@ -185,6 +186,63 @@ func _test_talisman_slot_and_compatibility_filtering() -> void:
 	for offer in POOL.get_valid_candidates(context):
 		if offer.talisman != null:
 			_assert(context["owned_talisman_levels"].has(offer.talisman.id), "talisman baru muncul saat slot penuh")
+
+
+func _test_talisman_rarity_level_and_additive_formula() -> void:
+	var damage_talisman := _find_talisman("damage")
+	var original_value := damage_talisman.value
+	var original_max_level := damage_talisman.max_level
+	_assert(original_max_level == 99, "max level default Talisman bukan 99")
+	_assert(
+		POOL.talisman_percent_upgrade_values == [0.02, 0.04, 0.07, 0.10, 0.15],
+		"tabel rarity Talisman bukan 2/4/7/10/15 persen"
+	)
+	for rarity_index in range(RewardOffer.Rarity.size()):
+		var offer := RewardOffer.new()
+		offer.category = RewardOffer.Category.TALISMAN_UPGRADE
+		offer.talisman = damage_talisman
+		POOL._roll_rarity(offer, 0.0)
+		# Validasi nilai dilakukan langsung dari tabel karena rarity hasil roll memang acak.
+		var expected := damage_talisman.get_upgrade_value(
+			POOL.talisman_percent_upgrade_values[int(offer.rarity)]
+		)
+		_assert(is_equal_approx(offer.talisman_upgrade_value, expected), "nilai Talisman tidak mengikuti rarity")
+
+	var player := TestPlayer.new()
+	root.add_child(player)
+	var build := BuildManager.new()
+	build.setup(player)
+	var definition := BASIC.duplicate(true) as WeaponDefinition
+	definition.base_damage = 100.0
+	definition.damage_per_level = 0.0
+	var instance := WeaponInstance.new()
+	instance.setup(definition, player, build)
+	var damage_upgrade := _find_weapon_upgrade(definition, WeaponUpgradeDefinition.StatType.DAMAGE)
+	var fire_rate_upgrade := _find_weapon_upgrade(definition, WeaponUpgradeDefinition.StatType.FIRE_RATE)
+	_assert(instance.apply_stat_upgrade(damage_upgrade, 0.20), "upgrade weapon 20% gagal")
+	_assert(build.add_talisman(damage_talisman, 0.10), "upgrade Talisman 10% gagal")
+	_assert(instance.get_damage_preview() == 130, "bonus weapon dan Talisman masih multiplicative")
+	_assert(instance.apply_stat_upgrade(fire_rate_upgrade, -0.20), "upgrade fire rate weapon 20% gagal")
+	_assert(build.add_talisman(_find_talisman("attack_speed"), -0.10), "upgrade attack speed Talisman 10% gagal")
+	_assert(is_equal_approx(instance.get_cooldown(), 0.70), "fire rate weapon dan Talisman masih multiplicative")
+	_assert(int(build.talisman_levels.get("attack_speed", 0)) == 1, "level Talisman tidak mandiri")
+	for _level in range(2, damage_talisman.max_level + 1):
+		_assert(build.add_talisman(damage_talisman, 0.01), "Talisman gagal mencapai level 99")
+	_assert(int(build.talisman_levels[damage_talisman.id]) == 99, "level Talisman tidak mencapai 99")
+	_assert(not build.add_talisman(damage_talisman, 0.01), "Talisman melewati level 99")
+	_assert(is_equal_approx(damage_talisman.value, original_value), "Resource Talisman berubah saat runtime")
+	_assert(damage_talisman.max_level == original_max_level, "max level Resource Talisman berubah saat runtime")
+
+	var maxed_context := {
+		"owned_talisman_levels": {damage_talisman.id: 99},
+		"owned_talisman_bonuses": {damage_talisman.id: 1.0},
+		"can_add_talisman": false,
+		"owned_compatibility_tags": BASIC.compatibility_tags,
+		"utility_stacks": {},
+	}
+	for candidate in POOL.get_valid_candidates(maxed_context):
+		_assert(candidate.talisman != damage_talisman, "Talisman level 99 masih muncul di reward pool")
+	player.queue_free()
 
 
 func _test_modifier_scope() -> void:

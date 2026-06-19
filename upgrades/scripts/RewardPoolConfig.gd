@@ -11,6 +11,7 @@ class_name RewardPoolConfig
 @export var utility_rarity_weight_multipliers: Array[float] = [1.0, 0.7, 0.4, 0.18, 0.06]
 @export var weapon_percent_upgrade_values: Array[float] = [0.02, 0.04, 0.07, 0.10, 0.15]
 @export var weapon_count_upgrade_values: Array[int] = [1, 2, 3, 4, 7]
+@export var talisman_percent_upgrade_values: Array[float] = [0.02, 0.04, 0.07, 0.10, 0.15]
 
 
 func roll_offers(context: Dictionary, max_offer_count: int) -> Array[RewardOffer]:
@@ -71,6 +72,7 @@ func get_valid_candidates(context: Dictionary) -> Array[RewardOffer]:
 			candidates.append(offer)
 
 	var owned_talisman_levels: Dictionary = context.get("owned_talisman_levels", {})
+	var owned_talisman_bonuses: Dictionary = context.get("owned_talisman_bonuses", {})
 	var can_add_talisman := bool(context.get("can_add_talisman", false))
 	var owned_tags: Array = context.get("owned_compatibility_tags", [])
 	for resource in talisman_definitions:
@@ -81,6 +83,8 @@ func get_valid_candidates(context: Dictionary) -> Array[RewardOffer]:
 		if current_level <= 0 and not can_add_talisman:
 			continue
 		if current_level >= talisman.max_level:
+			continue
+		if talisman.is_bonus_capped(float(owned_talisman_bonuses.get(talisman.id, 0.0))):
 			continue
 		var offer := RewardOffer.new()
 		offer.category = RewardOffer.Category.TALISMAN_NEW if current_level == 0 else RewardOffer.Category.TALISMAN_UPGRADE
@@ -151,6 +155,11 @@ func _roll_rarity(offer: RewardOffer, luck: float) -> void:
 			weapon_percent_upgrade_values,
 			weapon_count_upgrade_values
 		)
+	elif offer.category in [RewardOffer.Category.TALISMAN_NEW, RewardOffer.Category.TALISMAN_UPGRADE] \
+			and offer.talisman != null:
+		var rarity_percent := talisman_percent_upgrade_values[rarity_index] \
+			if rarity_index < talisman_percent_upgrade_values.size() else 0.0
+		offer.talisman_upgrade_value = offer.talisman.get_upgrade_value(rarity_percent)
 
 
 func _assign_offer_rarity(offer: RewardOffer, luck: float) -> void:

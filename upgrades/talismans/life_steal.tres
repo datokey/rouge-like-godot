@@ -9,5 +9,5 @@ display_name = "Life Steal Talisman"
 description = "Memulihkan HP saat weapon kompatibel memberi damage."
 modifier_key = &"combat.life_steal"
 value = 0.02
+total_bonus_cap = 1.0
 compatibility_tags = Array[StringName]([&"CAN_LIFESTEAL"])
-

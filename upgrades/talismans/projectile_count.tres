@@ -9,6 +9,6 @@ display_name = "Projectile Count Talisman"
 description = "Menambah projectile hanya untuk weapon bertipe projectile."
 modifier_key = &"weapon.projectile_count"
 value = 1.0
-max_level = 3
+value_type = 1
+total_bonus_cap = 7.0
 compatibility_tags = Array[StringName]([&"PROJECTILE"])
-

@@ -9,5 +9,5 @@ display_name = "Critical Chance Talisman"
 description = "Memberi peluang serangan menghasilkan critical hit."
 modifier_key = &"combat.critical_chance"
 value = 0.05
+total_bonus_cap = 0.95
 compatibility_tags = Array[StringName]([&"CAN_CRIT"])
-
