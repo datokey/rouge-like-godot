@@ -94,6 +94,12 @@ func _test_weapon_candidate_filtering() -> void:
 		_assert(offer.category != RewardOffer.Category.WEAPON_UPGRADE, "upgrade maksimal masih berada di pool")
 
 	_assert(_get_upgrade_types(BASIC) == [0, 1, 4, 5, 6], "upgrade_options BasicGun tidak sesuai")
+	_assert(
+		_get_upgrade_ids(BASIC) == [
+			"attack_speed", "projectile_count", "attack_range", "pierce", "damage",
+		],
+		"urutan upgrade_options BasicGun tidak sesuai"
+	)
 	_assert(_get_upgrade_types(BEAM) == [0, 2, 4, 6, 7], "upgrade_options BeamGun tidak sesuai")
 	_assert(_get_upgrade_types(AURA) == [0, 6, 7], "upgrade_options Aura tidak sesuai")
 	_assert(_get_upgrade_types(SUMMON) == [0, 3, 4, 5, 6], "upgrade_options Koalisi tidak sesuai")
@@ -429,6 +435,15 @@ func _get_upgrade_types(definition: WeaponDefinition) -> Array[int]:
 			types.append(int(upgrade.stat_type))
 	types.sort()
 	return types
+
+
+func _get_upgrade_ids(definition: WeaponDefinition) -> Array[String]:
+	var ids: Array[String] = []
+	for resource in definition.upgrade_options:
+		var upgrade := resource as WeaponUpgradeDefinition
+		if upgrade != null:
+			ids.append(upgrade.id)
+	return ids
 
 
 func _assert(condition: bool, message: String) -> void:

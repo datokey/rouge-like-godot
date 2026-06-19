@@ -217,24 +217,41 @@ func equip_starting_weapon(weapon_definition: Resource = null) -> bool:
 func get_build_hud_snapshot() -> Dictionary:
 	var weapon_entries: Array[Dictionary] = []
 	var damage_values: Array[String] = []
-	var cooldown_values: Array[String] = []
+	var attack_speed_values: Array[String] = []
 	var projectile_values: Array[String] = []
+	var attack_range_values: Array[String] = []
+	var pierce_values: Array[String] = []
 	var owned_tags: Array = []
 	if weapon_manager != null:
 		for instance in weapon_manager.weapons:
 			var definition: Resource = instance.definition
+			var weapon_name := str(definition.get("display_name"))
 			weapon_entries.append({
-				"name": str(definition.get("display_name")),
+				"name": weapon_name,
 				"level": instance.level,
 				"icon": definition.get("icon"),
 			})
-			damage_values.append(
-				"%s %d" % [definition.get("display_name"), instance.get_damage_preview()]
-			)
-			cooldown_values.append("%s %.2fs" % [definition.get("display_name"), instance.get_cooldown()])
-			if definition.get("compatibility_tags").has(CompatibilityTags.PROJECTILE):
+			damage_values.append("%s %d" % [weapon_name, instance.get_damage_preview()])
+			var supported_keys: Array = definition.get("supported_modifier_keys")
+			if supported_keys.has(&"weapon.cooldown"):
+				attack_speed_values.append(
+					"%s %.2f/s" % [weapon_name, 1.0 / maxf(instance.get_cooldown(), 0.001)]
+				)
+			if supported_keys.has(&"weapon.projectile_count"):
 				projectile_values.append(
-					"%s x%d" % [definition.get("display_name"), instance.get_projectile_count()]
+					"%s x%d" % [weapon_name, instance.get_projectile_count()]
+				)
+			if supported_keys.has(&"weapon.range"):
+				attack_range_values.append(
+					"%s %.0f" % [weapon_name, instance.get_attack_range()]
+				)
+			if supported_keys.has(&"weapon.pierce_percent"):
+				pierce_values.append(
+					"%s %d%% (+%d target)" % [
+						weapon_name,
+						roundi(instance.get_pierce_percent() * 100.0),
+						instance.get_projectile_pierce_count(),
+					]
 				)
 			for tag in definition.get("compatibility_tags"):
 				if not owned_tags.has(tag):
@@ -261,12 +278,18 @@ func get_build_hud_snapshot() -> Dictionary:
 				})
 
 	var stat_lines: Array[String] = [
-		"Damage: %s" % (", ".join(damage_values) if not damage_values.is_empty() else "-"),
-		"Movement Speed: %.1f" % get_move_speed(),
-		"Cooldown: %s" % (", ".join(cooldown_values) if not cooldown_values.is_empty() else "-"),
+		"Attack Speed: %s" % (
+			", ".join(attack_speed_values) if not attack_speed_values.is_empty() else "-"
+		),
 		"Projectile Count: %s" % (
 			", ".join(projectile_values) if not projectile_values.is_empty() else "-"
 		),
+		"Attack Range: %s" % (
+			", ".join(attack_range_values) if not attack_range_values.is_empty() else "-"
+		),
+		"Pierce: %s" % (", ".join(pierce_values) if not pierce_values.is_empty() else "-"),
+		"Damage: %s" % (", ".join(damage_values) if not damage_values.is_empty() else "-"),
+		"Movement Speed: %.1f" % get_move_speed(),
 		"Pickup Radius: %.1f" % (config.pickup_radius + pickup_radius_bonus),
 		"Revive: %d" % revive_charges,
 	]
