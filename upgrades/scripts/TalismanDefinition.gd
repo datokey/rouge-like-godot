@@ -7,6 +7,9 @@ class_name TalismanDefinition
 # Nilai rarity selalu berupa persen. Scale mengubahnya ke unit stat bila perlu
 # (contoh: 0.02 * 100 = 2 armor), tanpa mengubah Resource saat runtime.
 @export var rarity_value_scale := 1.0
+# 0 memakai modifier biasa. Nilai 1.0 berarti setiap akumulasi 100% menjadi
+# satu bonus milestone, sementara sisanya tetap tersimpan di BuildManager.
+@export_range(0.0, 10.0, 0.01) var milestone_percent := 0.0
 # 0 berarti tidak dibatasi di level Talisman. Cap weapon tetap berada di
 # WeaponDefinition (minimum fire interval, projectile count, dan sebagainya).
 @export_range(0.0, 1000.0, 0.01) var total_bonus_cap := 0.0

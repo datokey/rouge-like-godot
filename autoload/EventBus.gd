@@ -12,3 +12,4 @@ signal player_level_up(level: int, remaining_xp: int, next_required_xp: int)
 signal reward_selected(offer: RewardOffer)
 signal player_build_changed
 signal player_died
+signal enemy_damaged(amount: int, is_critical: bool, world_position: Vector2, source_type: StringName)

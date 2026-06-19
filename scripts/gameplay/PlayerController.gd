@@ -276,6 +276,20 @@ func get_build_hud_snapshot() -> Dictionary:
 		stat_lines.append("Critical Damage: %.1f%%" % (build_manager.get_critical_damage(owned_tags) * 100.0))
 		stat_lines.append("Life Steal: %.1f%%" % (build_manager.get_life_steal(owned_tags) * 100.0))
 		stat_lines.append("Luck: %.1f" % build_manager.get_luck())
+		var projectile_progress := build_manager.get_talisman_milestone_progress(
+			"projectile_count"
+		)
+		if not projectile_progress.is_empty():
+			var progress_percent := float(projectile_progress["progress_percent"]) * 100.0
+			var required_percent := float(projectile_progress["required_percent"]) * 100.0
+			var completed := int(projectile_progress["completed"])
+			stat_lines.append(
+				"Projectile Bonus %.0f%% — %.0f%% = +1 projectile (Aktif +%d)" % [
+					progress_percent,
+					required_percent,
+					completed,
+				]
+			)
 
 	return {
 		"weapons": weapon_entries,

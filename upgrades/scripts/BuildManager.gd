@@ -60,6 +60,7 @@ func add_talisman(talisman: TalismanDefinition, upgrade_value: float) -> bool:
 		"modifier_key": talisman.modifier_key,
 		"value": applied_value,
 		"value_type": talisman.value_type,
+		"milestone_percent": talisman.milestone_percent,
 		"compatibility_tags": talisman.compatibility_tags.duplicate(),
 	})
 	return true
@@ -88,7 +89,44 @@ func apply_weapon_modifiers(base_value: float, modifier_key: StringName, weapon_
 
 
 func get_weapon_talisman_percent_modifier(modifier_key: StringName, weapon_tags: Array) -> float:
-	return _get_modifier_value(modifier_key, ModifierDefinition.ValueType.PERCENT, weapon_tags, true)
+	return _get_modifier_value(
+		modifier_key,
+		ModifierDefinition.ValueType.PERCENT,
+		weapon_tags,
+		true,
+		true
+	)
+
+
+func get_weapon_talisman_milestone_modifier(
+	modifier_key: StringName,
+	weapon_tags: Array
+) -> int:
+	var total_milestones := 0
+	for talisman_id in talisman_definitions:
+		var talisman := talisman_definitions[talisman_id] as TalismanDefinition
+		if talisman == null or talisman.modifier_key != modifier_key:
+			continue
+		if talisman.milestone_percent <= 0.0 or not talisman.is_compatible(weapon_tags):
+			continue
+		var total := float(talisman_bonus_totals.get(talisman_id, 0.0))
+		total_milestones += floori((total + 0.00001) / talisman.milestone_percent)
+	return total_milestones
+
+
+func get_talisman_milestone_progress(talisman_id: String) -> Dictionary:
+	var talisman := talisman_definitions.get(talisman_id) as TalismanDefinition
+	if talisman == null or talisman.milestone_percent <= 0.0:
+		return {}
+	var total := maxf(0.0, float(talisman_bonus_totals.get(talisman_id, 0.0)))
+	var completed := floori((total + 0.00001) / talisman.milestone_percent)
+	var remainder := maxf(0.0, total - float(completed) * talisman.milestone_percent)
+	return {
+		"completed": completed,
+		"progress_percent": remainder,
+		"required_percent": talisman.milestone_percent,
+		"total_percent": total,
+	}
 
 
 func get_weapon_flat_modifier(modifier_key: StringName, weapon_tags: Array) -> float:
@@ -155,13 +193,16 @@ func _get_modifier_value(
 	modifier_key: StringName,
 	value_type: int,
 	weapon_tags: Array,
-	check_compatibility: bool
+	check_compatibility: bool,
+	exclude_milestones: bool = false
 ) -> float:
 	var total := 0.0
 	for modifier in active_modifiers:
 		if modifier.get("modifier_key") != modifier_key:
 			continue
 		if int(modifier.get("value_type", ModifierDefinition.ValueType.FLAT)) != value_type:
+			continue
+		if exclude_milestones and float(modifier.get("milestone_percent", 0.0)) > 0.0:
 			continue
 		var required_tags: Array = modifier.get("compatibility_tags", [])
 		if check_compatibility and not _tags_match(required_tags, weapon_tags):

@@ -188,8 +188,14 @@ func _damage_enemies_in_beam(
 
 		var enemy_id := enemy.get_instance_id()
 		damaged_enemy_ids[enemy_id] = true
-		var damage := get_damage()
-		weapon_instance.apply_damage(enemy, damage, direction, enemy.global_position)
+		var damage_result := get_damage_result()
+		weapon_instance.apply_damage(
+			enemy,
+			int(damage_result.get("amount", 0)),
+			direction,
+			enemy.global_position,
+			bool(damage_result.get("is_critical", false))
+		)
 
 
 func _get_owner_collision_rids() -> Array[RID]:

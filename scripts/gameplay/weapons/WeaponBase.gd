@@ -50,6 +50,13 @@ func get_damage() -> int:
 	return weapon_instance.get_damage()
 
 
+func get_damage_result() -> Dictionary:
+	if weapon_instance == null:
+		return {"amount": 0, "is_critical": false}
+
+	return weapon_instance.get_damage_result()
+
+
 func get_cooldown() -> float:
 	if weapon_instance == null:
 		return 1.0

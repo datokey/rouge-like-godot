@@ -38,11 +38,18 @@ func _apply_aura_effects() -> void:
 			continue
 			
 		if body.has_method("take_damage"):
-			var damage: int = _get_tick_damage()
+			var damage_result := _get_tick_damage_result()
+			var damage := int(damage_result.get("amount", 0))
 			var knockback_dir := Vector2.ZERO
 			if weapon_instance.is_aura_knockback_enabled():
 				knockback_dir = global_position.direction_to(body.global_position)
-			weapon_instance.apply_damage(body, damage, knockback_dir, body.global_position)
+			weapon_instance.apply_damage(
+				body,
+				damage,
+				knockback_dir,
+				body.global_position,
+				bool(damage_result.get("is_critical", false))
+			)
 			
 		if body.has_method("apply_slow"):
 			body.apply_slow(
@@ -58,8 +65,14 @@ func _draw() -> void:
 
 
 func _get_tick_damage() -> int:
-	var base_damage: float = float(get_damage())
-	return maxi(1, roundi(base_damage * weapon_instance.get_aura_tick_damage_multiplier()))
+	return int(_get_tick_damage_result().get("amount", 0))
+
+
+func _get_tick_damage_result() -> Dictionary:
+	var result := get_damage_result()
+	var base_damage := float(result.get("amount", 0))
+	result["amount"] = maxi(1, roundi(base_damage * weapon_instance.get_aura_tick_damage_multiplier()))
+	return result
 
 
 func _sync_aura_radius() -> void:

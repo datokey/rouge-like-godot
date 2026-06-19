@@ -41,6 +41,7 @@ func _shoot_projectiles(target: Node2D) -> void:
 	for index in range(projectile_count):
 		var projectile := projectile_scene.instantiate()
 		owner_node.get_tree().current_scene.add_child(projectile)
+		var damage_result := get_damage_result()
 
 		var spread_angle := (start_offset + float(index)) * spread_step
 		var shot_direction: Vector2 = base_direction.rotated(spread_angle)
@@ -49,8 +50,9 @@ func _shoot_projectiles(target: Node2D) -> void:
 			"setup",
 			owner_node.global_position,
 			target_position,
-			get_damage(),
+			int(damage_result.get("amount", 0)),
 			weapon_instance.get_projectile_speed(),
 			weapon_instance.get_projectile_size(),
-			weapon_instance
+			weapon_instance,
+			bool(damage_result.get("is_critical", false))
 		)

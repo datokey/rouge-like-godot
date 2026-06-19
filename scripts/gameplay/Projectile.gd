@@ -15,6 +15,7 @@ var source_weapon: WeaponInstance
 var size_multiplier := 1.0
 var remaining_pierce_count := 0
 var hit_enemy_ids: Dictionary = {}
+var is_critical_hit := false
 
 
 func _ready() -> void:
@@ -48,12 +49,14 @@ func setup(
 	projectile_damage: int,
 	projectile_speed: float = -1.0,
 	projectile_size: float = 1.0,
-	new_source_weapon: WeaponInstance = null
+	new_source_weapon: WeaponInstance = null,
+	new_is_critical_hit: bool = false
 ) -> void:
 	global_position = start_position
 	damage = projectile_damage
 	speed_override = projectile_speed
 	source_weapon = new_source_weapon
+	is_critical_hit = new_is_critical_hit
 	if source_weapon != null:
 		source_weapon.register_damage_source(self)
 		remaining_pierce_count = source_weapon.get_projectile_pierce_count()
@@ -92,7 +95,7 @@ func _on_area_entered(area: Area2D) -> void:
 			return
 		hit_enemy_ids[enemy_id] = true
 		if source_weapon != null:
-			source_weapon.apply_damage(owner_node, damage, direction, global_position)
+			source_weapon.apply_damage(owner_node, damage, direction, global_position, is_critical_hit)
 		if remaining_pierce_count > 0:
 			remaining_pierce_count -= 1
 		else:

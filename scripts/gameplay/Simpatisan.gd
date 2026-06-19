@@ -117,6 +117,7 @@ func _fire_projectile(target: Node2D) -> void:
 			continue
 
 		scene_root.add_child(projectile)
+		var damage_result := weapon_instance.get_summon_damage_result()
 		var angle_offset := deg_to_rad(spread_angle_degrees) * (start_offset + float(index))
 		var target_pos := global_position + target_direction.rotated(angle_offset) * 1000.0
 		if projectile.has_method("setup"):
@@ -124,10 +125,11 @@ func _fire_projectile(target: Node2D) -> void:
 				"setup",
 				global_position,
 				target_pos,
-				weapon_instance.get_summon_damage(),
+				int(damage_result.get("amount", 0)),
 				weapon_instance.get_summon_projectile_speed(),
 				1.0,
-				weapon_instance
+				weapon_instance,
+				bool(damage_result.get("is_critical", false))
 			)
 
 

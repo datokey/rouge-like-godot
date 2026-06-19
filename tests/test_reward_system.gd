@@ -28,6 +28,7 @@ func _run() -> void:
 	_test_weapon_level_upgrade_isolation_and_caps()
 	_test_talisman_slot_and_compatibility_filtering()
 	_test_talisman_rarity_level_and_additive_formula()
+	_test_projectile_talisman_milestones()
 	_test_modifier_scope()
 	_test_utility_collection()
 	_test_controlled_rng_and_fallback()
@@ -263,6 +264,54 @@ func _test_modifier_scope() -> void:
 	_assert(build.add_talisman(projectile_talisman, 1.0), "Projectile Count Talisman gagal dipasang")
 	_assert(manager.get_weapon_instance("basic_gun").get_projectile_count() == 2, "Projectile Count tidak memengaruhi BasicGun")
 	_assert(manager.get_weapon_instance("beam_gun").get_beam_count() == 1, "Projectile Count bocor ke jumlah beam")
+
+
+func _test_projectile_talisman_milestones() -> void:
+	var projectile_talisman := _find_talisman("projectile_count")
+	var original_milestone := projectile_talisman.milestone_percent
+	var cases := [
+		{"upgrades": [0.99], "percent": 0.99, "bonus": 0, "remainder": 0.99},
+		{"upgrades": [0.85, 0.15], "percent": 1.00, "bonus": 1, "remainder": 0.00},
+		{"upgrades": [0.85, 0.35], "percent": 1.20, "bonus": 1, "remainder": 0.20},
+		{"upgrades": [1.20, 0.80], "percent": 2.00, "bonus": 2, "remainder": 0.00},
+	]
+	for test_case in cases:
+		var build := BuildManager.new()
+		for upgrade_value in test_case.upgrades:
+			_assert(build.add_talisman(projectile_talisman, upgrade_value), "akumulasi milestone gagal")
+		var instance := WeaponInstance.new()
+		instance.setup(BASIC, null, build)
+		_assert(
+			instance.get_projectile_count() == int(BASIC.base_projectile_count) + test_case.bonus,
+			"milestone %.0f%% menghasilkan projectile yang salah" % (test_case.percent * 100.0)
+		)
+		var progress := build.get_talisman_milestone_progress(projectile_talisman.id)
+		_assert(int(progress["completed"]) == test_case.bonus, "jumlah milestone salah")
+		_assert(
+			is_equal_approx(float(progress["progress_percent"]), test_case.remainder),
+			"sisa progress milestone salah"
+		)
+
+	var capped_definition := BASIC.duplicate(true) as ProjectileWeaponDefinition
+	capped_definition.max_projectile_count = 2
+	var capped_build := BuildManager.new()
+	_assert(capped_build.add_talisman(projectile_talisman, 2.50), "setup cap milestone gagal")
+	var capped_instance := WeaponInstance.new()
+	capped_instance.setup(capped_definition, null, capped_build)
+	_assert(capped_instance.get_projectile_count() == 2, "milestone melewati cap weapon")
+	var capped_progress := capped_build.get_talisman_milestone_progress(projectile_talisman.id)
+	_assert(is_equal_approx(float(capped_progress["progress_percent"]), 0.50), "cap menghapus sisa progress")
+
+	var replacement_definition := BASIC.duplicate(true) as ProjectileWeaponDefinition
+	replacement_definition.base_projectile_count = 3
+	replacement_definition.max_projectile_count = 8
+	var replacement_instance := WeaponInstance.new()
+	replacement_instance.setup(replacement_definition, null, capped_build)
+	_assert(replacement_instance.get_projectile_count() == 5, "progress tidak terbawa saat ganti weapon")
+	_assert(
+		is_equal_approx(projectile_talisman.milestone_percent, original_milestone),
+		"Resource milestone berubah saat runtime"
+	)
 
 
 func _test_controlled_rng_and_fallback() -> void:

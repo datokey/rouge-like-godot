@@ -99,12 +99,21 @@ func _physics_process(delta: float) -> void:
 	_try_damage_player()
 
 
-func take_damage(amount: int, hit_direction: Vector2 = Vector2.ZERO, hit_position: Vector2 = Vector2.ZERO) -> void:
+func take_damage(
+	amount: int,
+	hit_direction: Vector2 = Vector2.ZERO,
+	hit_position: Vector2 = Vector2.ZERO,
+	is_critical: bool = false,
+	source_type: StringName = &"unknown"
+) -> void:
 	if is_dead:
 		return
 
-	current_hp -= amount
+	var final_damage := maxi(0, amount)
+	current_hp -= final_damage
 	_apply_hit_feedback(hit_direction, hit_position)
+	var damage_number_position := hit_position if hit_position != Vector2.ZERO else global_position
+	EventBus.enemy_damaged.emit(final_damage, is_critical, damage_number_position, source_type)
 
 	if current_hp <= 0:
 		# Flag ini mencegah drop/free terpanggil dua kali oleh projectile yang hampir bersamaan.

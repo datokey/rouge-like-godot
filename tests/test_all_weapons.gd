@@ -46,7 +46,13 @@ class TestEnemy extends CharacterBody2D:
 		hurtbox.add_child(hurtbox_shape)
 		add_child(hurtbox)
 
-	func take_damage(amount: int, _direction: Vector2, _hit_position: Vector2) -> void:
+	func take_damage(
+		amount: int,
+		_direction: Vector2,
+		_hit_position: Vector2,
+		_is_critical: bool = false,
+		_source_type: StringName = &"unknown"
+	) -> void:
 		damage_events += 1
 		total_damage += amount
 

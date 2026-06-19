@@ -45,12 +45,18 @@ func unregister_damage_source(damage_source: Node) -> void:
 	active_damage_sources.erase(damage_source)
 
 
-func apply_damage(target: Node, amount: int, direction: Vector2, hit_position: Vector2) -> bool:
+func apply_damage(
+	target: Node,
+	amount: int,
+	direction: Vector2,
+	hit_position: Vector2,
+	is_critical: bool = false
+) -> bool:
 	if not is_active or amount <= 0 or not is_instance_valid(target):
 		return false
 	if not target.has_method("take_damage"):
 		return false
-	target.call("take_damage", amount, direction, hit_position)
+	target.call("take_damage", amount, direction, hit_position, is_critical, get_damage_source_type())
 	on_damage_dealt(amount)
 	return true
 
@@ -78,12 +84,17 @@ func get_weapon_id() -> String:
 
 
 func get_damage() -> int:
+	return int(get_damage_result().get("amount", 0))
+
+
+func get_damage_result() -> Dictionary:
 	if not is_active:
-		return 0
+		return {"amount": 0, "is_critical": false}
 	var damage := get_damage_preview()
-	if _roll_critical_hit():
+	var is_critical := _roll_critical_hit()
+	if is_critical:
 		damage = roundi(float(damage) * (1.0 + _get_critical_damage()))
-	return damage
+	return {"amount": damage, "is_critical": is_critical}
 
 
 func get_damage_preview() -> int:
@@ -160,8 +171,29 @@ func get_summon_damage_multiplier() -> float:
 
 
 func get_summon_damage() -> int:
-	var base_damage := float(get_damage()) * get_summon_damage_multiplier()
-	return maxi(1, roundi(_apply_modifiers(base_damage, &"weapon.summon_damage")))
+	return int(get_summon_damage_result().get("amount", 0))
+
+
+func get_summon_damage_result() -> Dictionary:
+	var result := get_damage_result()
+	var base_damage := float(result.get("amount", 0)) * get_summon_damage_multiplier()
+	result["amount"] = maxi(1, roundi(_apply_modifiers(base_damage, &"weapon.summon_damage")))
+	return result
+
+
+func get_damage_source_type() -> StringName:
+	if definition == null:
+		return &"unknown"
+	match int(definition.get("weapon_type")):
+		WeaponDefinition.WeaponType.PROJECTILE:
+			return &"projectile"
+		WeaponDefinition.WeaponType.AURA:
+			return &"aura"
+		WeaponDefinition.WeaponType.SUMMON:
+			return &"summon"
+		WeaponDefinition.WeaponType.BEAM:
+			return &"beam"
+	return &"weapon"
 
 
 func get_summon_attack_cooldown() -> float:
@@ -499,8 +531,16 @@ func _apply_count_modifiers(base_count: int, modifier_key: StringName) -> int:
 			modifier_key,
 			_get_compatibility_tags()
 		))
+		var talisman_milestones := 0
+		if modifier_manager.has_method("get_weapon_talisman_milestone_modifier"):
+			talisman_milestones = int(modifier_manager.call(
+				"get_weapon_talisman_milestone_modifier",
+				modifier_key,
+				_get_compatibility_tags()
+			))
 		return roundi(float(base_count) + local_flat + talisman_flat \
-			+ float(base_count) * (local_percent + talisman_percent))
+			+ float(base_count) * (local_percent + talisman_percent)) \
+			+ talisman_milestones
 	return roundi(float(base_count) + _get_flat_modifier(modifier_key))
 
 
