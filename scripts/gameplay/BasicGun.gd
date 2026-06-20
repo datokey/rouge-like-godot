@@ -1,23 +1,64 @@
 extends WeaponBase
 class_name BasicGun
 
+const RELOAD_SIGNAL_INTERVAL := 0.1
+
+signal ammo_changed(current_ammo: int, magazine_capacity: int)
+signal reload_changed(is_reloading: bool, remaining_time: float, duration: float)
+
+enum State {
+	READY,
+	ATTACK_COOLDOWN,
+	RELOADING,
+}
+
 @export var projectile_scene: PackedScene
 
-var attack_timer := 0.0
+var state := State.READY
+var current_ammo := 0
+var state_timer := 0.0
+var reload_duration_snapshot := 0.0
+var _last_known_capacity := 0
+var _last_known_reload_time := 0.0
+var _last_reload_signal_step := -1
 
 
 func _on_weapon_setup() -> void:
-	attack_timer = 0.0
+	state = State.READY
+	state_timer = 0.0
+	reload_duration_snapshot = 0.0
+	_last_reload_signal_step = -1
+	current_ammo = weapon_instance.get_magazine_capacity()
+	_last_known_capacity = current_ammo
+	_last_known_reload_time = weapon_instance.get_reload_time()
+	ammo_changed.emit(current_ammo, _last_known_capacity)
+	reload_changed.emit(false, 0.0, _last_known_reload_time)
 
 
 func _physics_process(delta: float) -> void:
-	if get_owner_node() == null:
-		return
-	if projectile_scene == null:
+	if not is_inside_tree() or get_owner_node() == null:
 		return
 
-	attack_timer = maxf(attack_timer - delta, 0.0)
-	if attack_timer > 0.0:
+	_sync_live_magazine_config()
+
+	if state == State.RELOADING:
+		state_timer = maxf(state_timer - delta, 0.0)
+		if state_timer <= 0.0:
+			_finish_reload()
+		else:
+			_emit_reload_progress_if_needed()
+		return
+
+	if state == State.ATTACK_COOLDOWN:
+		state_timer = maxf(state_timer - delta, 0.0)
+		if state_timer > 0.0:
+			return
+		state = State.READY
+
+	if current_ammo <= 0:
+		_start_reload()
+		return
+	if projectile_scene == null:
 		return
 
 	var target := get_nearest_enemy()
@@ -25,7 +66,55 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_shoot_projectiles(target)
-	attack_timer = get_cooldown()
+	_consume_ammo()
+	if current_ammo <= 0:
+		_start_reload()
+	else:
+		state = State.ATTACK_COOLDOWN
+		state_timer = get_cooldown()
+
+
+func _consume_ammo() -> void:
+	current_ammo = maxi(0, current_ammo - 1)
+	ammo_changed.emit(current_ammo, weapon_instance.get_magazine_capacity())
+
+
+func _start_reload() -> void:
+	if state == State.RELOADING:
+		return
+	state = State.RELOADING
+	reload_duration_snapshot = weapon_instance.get_reload_time()
+	state_timer = reload_duration_snapshot
+	_last_reload_signal_step = ceili(state_timer / RELOAD_SIGNAL_INTERVAL)
+	reload_changed.emit(true, state_timer, reload_duration_snapshot)
+
+
+func _finish_reload() -> void:
+	current_ammo = weapon_instance.get_magazine_capacity()
+	state = State.READY
+	state_timer = 0.0
+	_last_reload_signal_step = -1
+	ammo_changed.emit(current_ammo, weapon_instance.get_magazine_capacity())
+	reload_changed.emit(false, 0.0, reload_duration_snapshot)
+
+
+func _emit_reload_progress_if_needed() -> void:
+	var current_step := ceili(state_timer / RELOAD_SIGNAL_INTERVAL)
+	if current_step == _last_reload_signal_step:
+		return
+	_last_reload_signal_step = current_step
+	reload_changed.emit(true, state_timer, reload_duration_snapshot)
+
+
+func _sync_live_magazine_config() -> void:
+	var live_capacity := weapon_instance.get_magazine_capacity()
+	var live_reload_time := weapon_instance.get_reload_time()
+	if live_capacity != _last_known_capacity:
+		_last_known_capacity = live_capacity
+		ammo_changed.emit(current_ammo, live_capacity)
+	if state != State.RELOADING and not is_equal_approx(live_reload_time, _last_known_reload_time):
+		_last_known_reload_time = live_reload_time
+		reload_changed.emit(false, 0.0, live_reload_time)
 
 
 func _shoot_projectiles(target: Node2D) -> void:

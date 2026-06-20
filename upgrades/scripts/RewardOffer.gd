@@ -122,6 +122,9 @@ func _format_weapon_upgrade() -> String:
 		return ""
 	if weapon_upgrade.uses_count_value():
 		return "+%d" % roundi(weapon_upgrade_value)
-	if weapon_upgrade.stat_type == WeaponUpgradeDefinition.StatType.FIRE_RATE:
+	if weapon_upgrade.stat_type in [
+		WeaponUpgradeDefinition.StatType.FIRE_RATE,
+		WeaponUpgradeDefinition.StatType.RELOAD_DURATION,
+	]:
 		return "+%.0f%% lebih cepat" % (absf(weapon_upgrade_value) * 100.0)
 	return "+%.0f%%" % (weapon_upgrade_value * 100.0)

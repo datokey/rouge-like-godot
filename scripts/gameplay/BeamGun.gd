@@ -1,6 +1,9 @@
 extends WeaponBase
 class_name BeamGun
 
+signal ammo_changed(current_ammo: int, ammo_capacity: int)
+signal reload_changed(is_reloading: bool, remaining_time: float, duration: float)
+
 @export var laser_color := Color(0.35, 0.9, 1.0, 0.9)
 
 @onready var raycast: RayCast2D = $RayCast2D
@@ -10,6 +13,12 @@ var cooldown_elapsed := INF
 var beam_elapsed := 0.0
 var damage_tick_timer := 0.0
 var is_beam_active := false
+var current_ammo := 0
+var is_reloading := false
+var reload_elapsed := 0.0
+var reload_duration_snapshot := 0.0
+var last_known_ammo_capacity := 0
+var last_reload_signal_step := -1
 var current_target: Node2D
 var beam_direction := Vector2.RIGHT
 var beam_targets: Array[Node2D] = []
@@ -37,6 +46,12 @@ func _on_weapon_setup() -> void:
 	beam_elapsed = 0.0
 	damage_tick_timer = 0.0
 	is_beam_active = false
+	current_ammo = weapon_instance.get_beam_ammo_capacity()
+	last_known_ammo_capacity = current_ammo
+	is_reloading = false
+	reload_elapsed = 0.0
+	reload_duration_snapshot = 0.0
+	last_reload_signal_step = -1
 	retarget_elapsed = 0.0
 	beam_targets.clear()
 	beam_lock_elapsed.clear()
@@ -47,14 +62,26 @@ func _on_weapon_setup() -> void:
 	var owner_node := get_owner_node()
 	if owner_node is CollisionObject2D:
 		raycast.add_exception(owner_node)
+	ammo_changed.emit(current_ammo, last_known_ammo_capacity)
+	reload_changed.emit(false, 0.0, weapon_instance.get_beam_reload_duration())
 
 
 func _physics_process(delta: float) -> void:
+	if get_tree().paused:
+		return
+
 	var owner_node := get_owner_node()
 	if owner_node == null:
 		return
 
 	global_position = owner_node.global_position
+	_sync_live_ammo_capacity()
+	if is_reloading:
+		_update_reload(delta)
+		return
+	if current_ammo <= 0:
+		_start_reload()
+		return
 
 	if is_beam_active:
 		_update_active_beam(delta)
@@ -64,7 +91,7 @@ func _physics_process(delta: float) -> void:
 		_update_target_lock_state(delta)
 	_set_beams_visible(false)
 	cooldown_elapsed += delta
-	if cooldown_elapsed < get_cooldown():
+	if cooldown_elapsed < weapon_instance.get_beam_activation_cooldown():
 		return
 
 	var target := get_nearest_enemy()
@@ -86,7 +113,10 @@ func _start_beam(target: Node2D) -> void:
 	is_beam_active = true
 	_sync_beam_visuals()
 	_update_beam_direction()
-	_damage_current_raycast_targets()
+	var did_damage := _damage_current_raycast_targets()
+	damage_tick_timer = weapon_instance.get_beam_tick_interval()
+	if did_damage:
+		_consume_ammo_for_tick()
 
 
 func _update_active_beam(delta: float) -> void:
@@ -108,7 +138,11 @@ func _update_active_beam(delta: float) -> void:
 
 	damage_tick_timer -= delta
 	while damage_tick_timer <= 0.0 and is_beam_active:
-		_damage_current_raycast_targets()
+		var did_damage := _damage_current_raycast_targets()
+		if did_damage:
+			_consume_ammo_for_tick()
+			if is_reloading:
+				break
 		damage_tick_timer += weapon_instance.get_beam_tick_interval()
 
 
@@ -116,6 +150,61 @@ func _finish_beam() -> void:
 	is_beam_active = false
 	_set_beams_visible(false)
 	cooldown_elapsed = 0.0
+
+
+func _consume_ammo_for_tick() -> void:
+	current_ammo = maxi(0, current_ammo - 1)
+	ammo_changed.emit(current_ammo, weapon_instance.get_beam_ammo_capacity())
+	if current_ammo <= 0:
+		_start_reload()
+
+
+func _start_reload() -> void:
+	if is_reloading:
+		return
+	if is_beam_active:
+		_finish_beam()
+	is_reloading = true
+	reload_elapsed = 0.0
+	# Snapshot hanya durasi. Kapasitas tetap dibaca live saat reload selesai.
+	reload_duration_snapshot = weapon_instance.get_beam_reload_duration()
+	last_reload_signal_step = ceili(
+		reload_duration_snapshot / weapon_instance.get_beam_reload_progress_signal_interval()
+	)
+	reload_changed.emit(true, reload_duration_snapshot, reload_duration_snapshot)
+
+
+func _update_reload(delta: float) -> void:
+	reload_elapsed += delta
+	if reload_elapsed < reload_duration_snapshot:
+		_emit_reload_progress_if_needed()
+		return
+	is_reloading = false
+	reload_elapsed = 0.0
+	current_ammo = weapon_instance.get_beam_ammo_capacity()
+	last_reload_signal_step = -1
+	cooldown_elapsed = INF
+	ammo_changed.emit(current_ammo, weapon_instance.get_beam_ammo_capacity())
+	reload_changed.emit(false, 0.0, reload_duration_snapshot)
+
+
+func _emit_reload_progress_if_needed() -> void:
+	var remaining := maxf(reload_duration_snapshot - reload_elapsed, 0.0)
+	var current_step := ceili(
+		remaining / weapon_instance.get_beam_reload_progress_signal_interval()
+	)
+	if current_step == last_reload_signal_step:
+		return
+	last_reload_signal_step = current_step
+	reload_changed.emit(true, remaining, reload_duration_snapshot)
+
+
+func _sync_live_ammo_capacity() -> void:
+	var live_capacity := weapon_instance.get_beam_ammo_capacity()
+	if live_capacity == last_known_ammo_capacity:
+		return
+	last_known_ammo_capacity = live_capacity
+	ammo_changed.emit(current_ammo, live_capacity)
 
 
 func _update_beam_direction() -> void:
@@ -149,7 +238,8 @@ func _update_laser_visual_for(line: Line2D, end_point: Vector2) -> void:
 	line.add_point(end_point)
 
 
-func _damage_current_raycast_targets() -> void:
+func _damage_current_raycast_targets() -> bool:
+	var did_damage := false
 	for index in range(beam_rays.size()):
 		if index >= beam_targets.size() or not _is_target_alive(beam_targets[index]):
 			continue
@@ -158,12 +248,13 @@ func _damage_current_raycast_targets() -> void:
 		# Selalu ambil ulang dari WeaponInstance pada setiap tick/beam. Jangan cache
 		# nilai ini saat setup karena level dan Talisman dapat berubah saat beam aktif.
 		var damage_result := weapon_instance.get_live_damage_result()
-		_damage_enemies_in_beam(
+		did_damage = _damage_enemies_in_beam(
 			index,
 			beam_rays[index],
 			beam_directions[index],
 			damage_result
-		)
+		) or did_damage
+	return did_damage
 
 
 func _damage_enemies_in_beam(
@@ -171,7 +262,7 @@ func _damage_enemies_in_beam(
 	beam_ray: RayCast2D,
 	direction: Vector2,
 	damage_result: Dictionary
-) -> void:
+) -> bool:
 	var beam_range := get_range()
 	var query_shape := RectangleShape2D.new()
 	query_shape.size = Vector2(beam_range, weapon_instance.get_beam_width())
@@ -211,6 +302,7 @@ func _damage_enemies_in_beam(
 	)
 
 	var max_targets := weapon_instance.get_beam_pierce_count()
+	var did_damage := false
 	for target_index in range(candidate_enemies.size()):
 		if max_targets > 0 and target_index >= max_targets:
 			break
@@ -221,13 +313,14 @@ func _damage_enemies_in_beam(
 			* weapon_instance.get_beam_damage_multiplier(target_index)
 		)
 		var damage := _consume_fractional_damage(beam_index, target_index, raw_damage)
-		weapon_instance.apply_damage(
+		did_damage = weapon_instance.apply_damage(
 			enemy,
 			maxi(0, damage),
 			direction,
 			enemy.global_position,
 			bool(damage_result.get("is_critical", false))
-		)
+		) or did_damage
+	return did_damage
 
 
 func _ensure_target_slots(required_count: int) -> void:

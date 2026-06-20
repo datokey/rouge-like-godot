@@ -1,15 +1,14 @@
-[gd_resource type="Resource" script_class="TalismanDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="TalismanDefinition" format=3 uid="uid://cvs7q0h3iyatv"]
 
-[ext_resource type="Script" path="res://upgrades/scripts/TalismanDefinition.gd" id="1"]
+[ext_resource type="Script" uid="uid://dvs3a8jromo34" path="res://upgrades/scripts/TalismanDefinition.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
+compatibility_tags = Array[StringName]([&"PROJECTILE"])
+milestone_percent = 1.0
+total_bonus_cap = 7.0
 id = "projectile_count"
 display_name = "Projectile Count Talisman"
 description = "Menambah projectile hanya untuk weapon bertipe projectile."
 modifier_key = &"weapon.projectile_count"
 value = 1.0
-value_type = 1
-milestone_percent = 1.0
-total_bonus_cap = 7.0
-compatibility_tags = Array[StringName]([&"PROJECTILE"])

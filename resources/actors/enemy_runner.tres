@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="EnemyConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EnemyConfig" format=3 uid="uid://cs5sqppy73qwb"]
 
-[ext_resource type="Script" path="res://scripts/gameplay/EnemyConfig.gd" id="1_enemy_config"]
+[ext_resource type="Script" uid="uid://b6uj155i1unn3" path="res://scripts/gameplay/EnemyConfig.gd" id="1_enemy_config"]
 
 [resource]
 script = ExtResource("1_enemy_config")
@@ -14,9 +14,8 @@ detour_waypoint_reached_distance = 18.0
 obstacle_avoidance_duration = 0.25
 obstacle_avoidance_weight = 0.8
 obstacle_stuck_time = 0.12
-xp_drop_rolls_min = 1
-xp_drop_rolls_max = 2
+xp_drop_rolls_min = 3
+xp_drop_rolls_max = 5
 xp_drop_weights = Array[int]([32, 24, 22, 15, 7])
-hp_drop_values = Array[int]([5, 10, 15, 20, 25])
 hp_drop_weights = Array[int]([45, 28, 17, 8, 2])
 health_drop_chance = 0.25

@@ -9,5 +9,5 @@ display_name = "Last Stand"
 description = "Menghidupkan player satu kali saat HP habis."
 rarity = 2
 effect_type = 2
-max_stack = 3
+max_stack = 99
 weight = 0.35

@@ -15,7 +15,7 @@ script = ExtResource("3_upgrade")
 stat_type = 0
 id = "attack_speed"
 display_name = "Attack Speed"
-modifier_key = &"weapon.cooldown"
+modifier_key = &"weapon.beam_tick_interval"
 
 [sub_resource type="Resource" id="Upgrade_beam_width"]
 script = ExtResource("3_upgrade")
@@ -38,17 +38,24 @@ id = "beam_count"
 display_name = "Beam Count"
 modifier_key = &"weapon.beam_count"
 
+[sub_resource type="Resource" id="Upgrade_ammo_capacity"]
+script = ExtResource("3_upgrade")
+stat_type = 8
+id = "ammo_capacity"
+display_name = "Ammo Capacity"
+modifier_key = &"weapon.ammo_capacity"
+
+[sub_resource type="Resource" id="Upgrade_reload_duration"]
+script = ExtResource("3_upgrade")
+stat_type = 9
+id = "reload_duration"
+display_name = "Reload Speed"
+modifier_key = &"weapon.reload_duration"
+
 [resource]
 script = ExtResource("1_weapon_definition")
 beam_duration = 1.1
 beam_tick_interval = 0.18
-beam_damage_falloff = 0.0
-base_beam_count = 1
-max_beam_count = 6
-minimum_lock_duration = 0.35
-retarget_interval = 0.15
-out_of_range_grace_time = 0.25
-lock_range_margin = 30.0
 beam_color_max_level = 5
 id = "beam_gun"
 display_name = "Beam Gun"
@@ -56,8 +63,8 @@ description = "Mengunci musuh terdekat lalu menyalakan laser yang memberi damage
 weapon_type = 4
 weapon_scene = ExtResource("2_beam_gun_scene")
 compatibility_tags = Array[StringName]([&"BEAM", &"USES_ATTACK_SPEED", &"CAN_CRIT", &"CAN_LIFESTEAL"])
-upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_beam_width"), SubResource("Upgrade_beam_length"), SubResource("Upgrade_beam_count")])
-supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.cooldown", &"weapon.range", &"weapon.beam_width", &"weapon.beam_count"])
+upgrade_options = Array[Resource]([SubResource("Upgrade_damage"), SubResource("Upgrade_attack_speed"), SubResource("Upgrade_beam_width"), SubResource("Upgrade_beam_length"), SubResource("Upgrade_beam_count"), SubResource("Upgrade_ammo_capacity"), SubResource("Upgrade_reload_duration")])
+supported_modifier_keys = Array[StringName]([&"weapon.damage", &"weapon.range", &"weapon.beam_width", &"weapon.beam_count", &"weapon.beam_tick_interval", &"weapon.ammo_capacity", &"weapon.reload_duration"])
 base_damage = 4.0
 base_cooldown = 1.4
 base_range = 225.0

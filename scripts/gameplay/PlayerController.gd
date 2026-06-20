@@ -28,10 +28,14 @@ var damage_to_shield_ratio := 0.0
 var utility_max_hp_bonus := 0
 var build_manager: BuildManager
 var weapon_manager
+var weapon_ammo_status: Dictionary = {}
+var weapon_reload_status: Dictionary = {}
 
 
 func _ready() -> void:
 	EventBus.reward_selected.connect(_on_reward_selected)
+	EventBus.weapon_ammo_changed.connect(_on_weapon_ammo_changed)
+	EventBus.weapon_reload_changed.connect(_on_weapon_reload_changed)
 	build_manager = BuildManagerScript.new()
 	build_manager.max_talisman_slots = max_talisman_slots
 	build_manager.setup(self)
@@ -182,6 +186,28 @@ func _on_reward_selected(offer: RewardOffer) -> void:
 		EventBus.player_build_changed.emit()
 
 
+func _on_weapon_ammo_changed(weapon_id: String, current_ammo: int, capacity: int) -> void:
+	weapon_ammo_status[weapon_id] = {
+		"current": current_ammo,
+		"capacity": capacity,
+	}
+	EventBus.player_build_changed.emit()
+
+
+func _on_weapon_reload_changed(
+	weapon_id: String,
+	is_reloading: bool,
+	remaining_time: float,
+	duration: float
+) -> void:
+	weapon_reload_status[weapon_id] = {
+		"is_reloading": is_reloading,
+		"remaining_time": remaining_time,
+		"duration": duration,
+	}
+	EventBus.player_build_changed.emit()
+
+
 func get_reward_offer_context() -> Dictionary:
 	var context := {"player_level": current_level}
 
@@ -219,8 +245,12 @@ func get_build_hud_snapshot() -> Dictionary:
 	var damage_values: Array[String] = []
 	var attack_speed_values: Array[String] = []
 	var projectile_values: Array[String] = []
+	var beam_count_values: Array[String] = []
+	var beam_width_values: Array[String] = []
 	var attack_range_values: Array[String] = []
 	var pierce_values: Array[String] = []
+	var ammo_values: Array[String] = []
+	var reload_values: Array[String] = []
 	var owned_tags: Array = []
 	if weapon_manager != null:
 		for instance in weapon_manager.weapons:
@@ -231,16 +261,29 @@ func get_build_hud_snapshot() -> Dictionary:
 				"level": instance.level,
 				"icon": definition.get("icon"),
 			})
-			damage_values.append("%s %d" % [weapon_name, instance.get_damage_preview()])
 			var supported_keys: Array = definition.get("supported_modifier_keys")
+			if supported_keys.has(&"weapon.beam_tick_interval"):
+				damage_values.append("%s %.2f/tick" % [weapon_name, instance.get_damage_value()])
+				attack_speed_values.append(
+					"%s %.2f tick/s" % [
+						weapon_name,
+						1.0 / maxf(instance.get_beam_tick_interval(), 0.001),
+					]
+				)
+			else:
+				damage_values.append("%s %d" % [weapon_name, instance.get_damage_preview()])
 			if supported_keys.has(&"weapon.cooldown"):
 				attack_speed_values.append(
-					"%s %.2f/s" % [weapon_name, 1.0 / maxf(instance.get_cooldown(), 0.001)]
+					"%s %.2fs" % [weapon_name, instance.get_cooldown()]
 				)
 			if supported_keys.has(&"weapon.projectile_count"):
 				projectile_values.append(
 					"%s x%d" % [weapon_name, instance.get_projectile_count()]
 				)
+			if supported_keys.has(&"weapon.beam_count"):
+				beam_count_values.append("%s x%d" % [weapon_name, instance.get_beam_count()])
+			if supported_keys.has(&"weapon.beam_width"):
+				beam_width_values.append("%s %.1f" % [weapon_name, instance.get_beam_width()])
 			if supported_keys.has(&"weapon.range"):
 				attack_range_values.append(
 					"%s %.0f" % [weapon_name, instance.get_attack_range()]
@@ -251,6 +294,38 @@ func get_build_hud_snapshot() -> Dictionary:
 						weapon_name,
 						roundi(instance.get_pierce_percent() * 100.0),
 						instance.get_projectile_pierce_count(),
+					]
+				)
+			var uses_runtime_ammo := supported_keys.has(&"weapon.ammo_capacity")
+			var uses_basic_magazine := definition is BasicGunDefinition
+			if uses_runtime_ammo or uses_basic_magazine:
+				var weapon_id: String = instance.get_weapon_id()
+				var ammo_status: Dictionary = weapon_ammo_status.get(weapon_id, {})
+				var live_capacity: int = (
+					instance.get_beam_ammo_capacity()
+					if uses_runtime_ammo
+					else instance.get_magazine_capacity()
+				)
+				var displayed_ammo: int = int(ammo_status.get("current", live_capacity))
+				ammo_values.append("%s %d / %d" % [weapon_name, displayed_ammo, live_capacity])
+				var reload_status: Dictionary = weapon_reload_status.get(weapon_id, {})
+				var is_reloading := bool(reload_status.get("is_reloading", false))
+				var reload_remaining := float(reload_status.get("remaining_time", 0.0))
+				var displayed_reload_time: float = (
+					instance.get_beam_reload_duration()
+					if uses_runtime_ammo
+					else instance.get_reload_time()
+				)
+				if is_reloading:
+					displayed_reload_time = float(reload_status.get(
+						"duration",
+						displayed_reload_time
+					))
+				reload_values.append(
+					"%s %.2fs%s" % [
+						weapon_name,
+						displayed_reload_time,
+						" (Reloading: %.1fs)" % reload_remaining if is_reloading else "",
 					]
 				)
 			for tag in definition.get("compatibility_tags"):
@@ -293,6 +368,13 @@ func get_build_hud_snapshot() -> Dictionary:
 		"Pickup Radius: %.1f" % (config.pickup_radius + pickup_radius_bonus),
 		"Revive: %d" % revive_charges,
 	]
+	if not beam_count_values.is_empty():
+		stat_lines.insert(2, "Beam Count: %s" % ", ".join(beam_count_values))
+	if not beam_width_values.is_empty():
+		stat_lines.insert(3, "Beam Width: %s" % ", ".join(beam_width_values))
+	if not ammo_values.is_empty():
+		stat_lines.append("Ammo: %s" % ", ".join(ammo_values))
+		stat_lines.append("Reload Time: %s" % ", ".join(reload_values))
 	if build_manager != null:
 		stat_lines.append("Armor: %d" % build_manager.get_armor())
 		stat_lines.append("Critical Chance: %.1f%%" % (build_manager.get_critical_chance(owned_tags) * 100.0))

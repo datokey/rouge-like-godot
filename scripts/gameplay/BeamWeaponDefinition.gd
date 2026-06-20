@@ -6,6 +6,7 @@ class_name BeamWeaponDefinition
 @export var beam_duration_per_level: float = 0.0
 @export var beam_tick_interval: float = 0.2
 @export var beam_tick_interval_reduction_per_level: float = 0.0
+@export_range(0.01, 5.0, 0.01) var minimum_beam_tick_interval := 0.03
 @export var beam_width: float = 5.0
 @export_range(0.0, 1.0, 0.01) var beam_damage_falloff := 0.0
 # 0 berarti menembus semua target sampai batas panjang beam.
@@ -17,6 +18,12 @@ class_name BeamWeaponDefinition
 @export_range(1, 100, 1) var max_beam_count := 6
 @export_range(1.0, 200.0, 0.5) var max_beam_width := 40.0
 @export_range(0.0, 90.0, 0.5) var spread_angle_degrees := 8.0
+@export_group("Ammo")
+@export_range(1, 999, 1) var base_ammo_capacity := 12
+@export_range(1, 999, 1) var max_ammo_capacity := 60
+@export_range(0.05, 30.0, 0.05) var reload_duration := 2.0
+@export_range(0.05, 30.0, 0.05) var minimum_reload_duration := 0.25
+@export_range(0.01, 1.0, 0.01) var reload_progress_signal_interval := 0.1
 @export_group("Target Lock")
 @export_range(0.0, 10.0, 0.05) var minimum_lock_duration := 0.35
 @export_range(0.01, 5.0, 0.01) var retarget_interval := 0.15

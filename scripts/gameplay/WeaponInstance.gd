@@ -127,6 +127,9 @@ func get_damage_value() -> float:
 
 
 func get_cooldown() -> float:
+	if definition is BasicGunDefinition:
+		return get_basic_gun_attack_speed()
+
 	var base_cooldown := _get_float("base_cooldown", 1.0)
 	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
 	var minimum_interval := _get_float("minimum_fire_interval", 0.05)
@@ -136,6 +139,42 @@ func get_cooldown() -> float:
 		&"weapon.cooldown",
 		&"weapon.attack_speed"
 	))
+
+
+func get_basic_gun_base_attack_speed() -> float:
+	return maxf(0.0, _get_float("base_attack_speed", 1.0))
+
+
+func get_basic_gun_level_attack_speed_reduction() -> float:
+	var reduction_per_level := maxf(
+		0.0,
+		_get_float("attack_speed_reduction_per_level", 0.0)
+	)
+	return reduction_per_level * float(maxi(0, level - 1))
+
+
+func get_basic_gun_talisman_attack_speed_percent() -> float:
+	if modifier_manager == null \
+			or not modifier_manager.has_method("get_weapon_talisman_percent_modifier"):
+		return 0.0
+	return maxf(0.0, float(modifier_manager.call(
+		"get_weapon_talisman_percent_modifier",
+		&"weapon.attack_speed",
+		_get_compatibility_tags()
+	)))
+
+
+func get_basic_gun_attack_speed() -> float:
+	var base_attack_speed := get_basic_gun_base_attack_speed()
+	var level_reduction := get_basic_gun_level_attack_speed_reduction()
+	var attack_speed_after_level := maxf(0.0, base_attack_speed - level_reduction)
+	var talisman_percent := get_basic_gun_talisman_attack_speed_percent()
+	var calculated_attack_speed := attack_speed_after_level / (1.0 + talisman_percent)
+	var minimum_attack_speed := maxf(
+		0.01,
+		_get_float("minimum_attack_speed", 0.01)
+	)
+	return maxf(calculated_attack_speed, minimum_attack_speed)
 
 
 func get_projectile_count() -> int:
@@ -171,6 +210,20 @@ func get_projectile_speed() -> float:
 func get_attack_range() -> float:
 	var max_range := _get_float("max_attack_range", 1200.0)
 	return clampf(_apply_modifiers(_get_float("base_range", 300.0), &"weapon.range"), 0.0, max_range)
+
+
+func get_magazine_capacity() -> int:
+	var base_capacity := _get_int("base_magazine_capacity", 1)
+	var capacity_per_level := _get_int("magazine_capacity_per_level", 0)
+	var max_capacity := maxi(1, _get_int("max_magazine_capacity", base_capacity))
+	return clampi(base_capacity + capacity_per_level * (level - 1), 1, max_capacity)
+
+
+func get_reload_time() -> float:
+	var base_time := _get_float("base_reload_time", 1.0)
+	var reduction_per_level := _get_float("reload_time_reduction_per_level", 0.0)
+	var minimum_time := maxf(0.01, _get_float("minimum_reload_time", 0.05))
+	return maxf(minimum_time, base_time - reduction_per_level * float(level - 1))
 
 
 func get_summon_cooldown() -> float:
@@ -296,7 +349,39 @@ func get_beam_duration() -> float:
 func get_beam_tick_interval() -> float:
 	var base_interval := _get_float("beam_tick_interval", 0.2)
 	var reduction := _get_float("beam_tick_interval_reduction_per_level", 0.0) * float(level - 1)
-	return maxf(0.03, _apply_modifiers(base_interval - reduction, &"weapon.beam_tick_interval"))
+	return maxf(
+		_get_float("minimum_beam_tick_interval", 0.03),
+		_apply_modifiers_with_talisman_alias(
+			base_interval - reduction,
+			&"weapon.beam_tick_interval",
+			&"weapon.attack_speed"
+		)
+	)
+
+
+func get_beam_activation_cooldown() -> float:
+	var base_cooldown := _get_float("base_cooldown", 1.0)
+	var reduction := _get_float("cooldown_reduction_per_level", 0.0) * float(level - 1)
+	return maxf(0.05, _apply_modifiers(base_cooldown - reduction, &"weapon.cooldown"))
+
+
+func get_beam_ammo_capacity() -> int:
+	return clampi(
+		_apply_count_modifiers(_get_int("base_ammo_capacity", 12), &"weapon.ammo_capacity"),
+		1,
+		maxi(1, _get_int("max_ammo_capacity", 60))
+	)
+
+
+func get_beam_reload_duration() -> float:
+	return maxf(
+		_get_float("minimum_reload_duration", 0.25),
+		_apply_modifiers(_get_float("reload_duration", 2.0), &"weapon.reload_duration")
+	)
+
+
+func get_beam_reload_progress_signal_interval() -> float:
+	return maxf(0.01, _get_float("reload_progress_signal_interval", 0.1))
 
 
 func get_beam_width() -> float:
@@ -391,6 +476,13 @@ func can_apply_stat_upgrade(upgrade: WeaponUpgradeDefinition) -> bool:
 func apply_stat_upgrade(upgrade: WeaponUpgradeDefinition, upgrade_value: float) -> bool:
 	if not can_apply_stat_upgrade(upgrade):
 		return false
+	if definition is BasicGunDefinition \
+			and upgrade.stat_type == WeaponUpgradeDefinition.StatType.FIRE_RATE:
+		# Basic Gun memakai pengurangan interval per level yang configurable.
+		# Nilai hasil kalkulasi tidak disimpan agar tidak terakumulasi saat dibaca ulang.
+		upgrade_stacks[upgrade.id] = int(upgrade_stacks.get(upgrade.id, 0)) + 1
+		level += 1
+		return true
 	var modifiers := local_percent_modifiers
 	if upgrade.uses_count_value() or upgrade.stat_type == WeaponUpgradeDefinition.StatType.PIERCE:
 		modifiers = local_flat_modifiers
@@ -416,6 +508,10 @@ func _has_reached_upgrade_cap(upgrade: WeaponUpgradeDefinition) -> bool:
 			)
 		WeaponUpgradeDefinition.StatType.BEAM_COUNT:
 			return get_beam_count() >= _get_int("max_beam_count", 6)
+		WeaponUpgradeDefinition.StatType.AMMO_CAPACITY:
+			return get_beam_ammo_capacity() >= _get_int("max_ammo_capacity", 60)
+		WeaponUpgradeDefinition.StatType.RELOAD_DURATION:
+			return get_beam_reload_duration() <= _get_float("minimum_reload_duration", 0.25) + 0.00001
 		WeaponUpgradeDefinition.StatType.ATTACK_RANGE:
 			return get_attack_range() >= _get_float("max_attack_range", 1200.0) - 0.00001
 		WeaponUpgradeDefinition.StatType.PIERCE:
@@ -536,6 +632,11 @@ func _apply_modifiers_with_talisman_alias(
 			talisman_modifier_key,
 			_get_compatibility_tags()
 		))
+		if talisman_modifier_key == &"weapon.attack_speed":
+			var interval_after_weapon := base_value + local_flat \
+				+ base_value * local_percent
+			return (interval_after_weapon + talisman_flat) \
+				/ (1.0 + maxf(0.0, talisman_percent))
 		return base_value + local_flat + talisman_flat \
 			+ base_value * (local_percent + talisman_percent)
 

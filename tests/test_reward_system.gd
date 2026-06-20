@@ -89,7 +89,7 @@ func _test_weapon_candidate_filtering() -> void:
 		_assert(offer.category != RewardOffer.Category.WEAPON_NEW, "weapon baru muncul saat empat slot penuh")
 	_assert(
 		_get_candidate_upgrade_ids(full_candidates, "beam_gun") == [
-			"attack_speed", "beam_count", "beam_length", "beam_width", "damage",
+			"ammo_capacity", "attack_speed", "beam_count", "beam_length", "beam_width", "damage", "reload_duration",
 		],
 		"reward pool BeamGun memuat stat di luar konfigurasi"
 	)
@@ -119,11 +119,11 @@ func _test_weapon_candidate_filtering() -> void:
 		],
 		"urutan upgrade_options BasicGun tidak sesuai"
 	)
-	_assert(_get_upgrade_types(BEAM) == [0, 2, 4, 6, 7], "upgrade_options BeamGun tidak sesuai")
+	_assert(_get_upgrade_types(BEAM) == [0, 2, 4, 6, 7, 8, 9], "upgrade_options BeamGun tidak sesuai")
 	_assert(_get_upgrade_types(AURA) == [0, 6, 7], "upgrade_options Aura tidak sesuai")
 	_assert(_get_upgrade_types(SUMMON) == [0, 3, 4, 5, 6], "upgrade_options Koalisi tidak sesuai")
 	_assert(
-		_get_sorted_upgrade_ids(BEAM) == ["attack_speed", "beam_count", "beam_length", "beam_width", "damage"],
+		_get_sorted_upgrade_ids(BEAM) == ["ammo_capacity", "attack_speed", "beam_count", "beam_length", "beam_width", "damage", "reload_duration"],
 		"ID upgrade BeamGun tidak sesuai"
 	)
 	_assert(
@@ -258,14 +258,52 @@ func _test_talisman_rarity_level_and_additive_formula() -> void:
 	var instance := WeaponInstance.new()
 	instance.setup(definition, player, build)
 	var damage_upgrade := _find_weapon_upgrade(definition, WeaponUpgradeDefinition.StatType.DAMAGE)
-	var fire_rate_upgrade := _find_weapon_upgrade(definition, WeaponUpgradeDefinition.StatType.FIRE_RATE)
 	_assert(instance.apply_stat_upgrade(damage_upgrade, 0.20), "upgrade weapon 20% gagal")
 	_assert(build.add_talisman(damage_talisman, 0.10), "upgrade Talisman 10% gagal")
 	_assert(instance.get_damage_preview() == 130, "bonus weapon dan Talisman masih multiplicative")
-	_assert(instance.apply_stat_upgrade(fire_rate_upgrade, -0.20), "upgrade fire rate weapon 20% gagal")
-	_assert(build.add_talisman(_find_talisman("attack_speed"), -0.10), "upgrade attack speed Talisman 10% gagal")
-	_assert(is_equal_approx(instance.get_cooldown(), 0.70), "fire rate weapon dan Talisman masih multiplicative")
-	_assert(int(build.talisman_levels.get("attack_speed", 0)) == 1, "level Talisman tidak mandiri")
+
+	var speed_definition := BASIC.duplicate(true) as BasicGunDefinition
+	speed_definition.base_attack_speed = 1.0
+	speed_definition.attack_speed_reduction_per_level = 0.2
+	speed_definition.minimum_attack_speed = 0.01
+	var speed_build := BuildManager.new()
+	speed_build.setup(player)
+	var speed_instance := WeaponInstance.new()
+	speed_instance.setup(speed_definition, player, speed_build)
+	var fire_rate_upgrade := _find_weapon_upgrade(
+		speed_definition,
+		WeaponUpgradeDefinition.StatType.FIRE_RATE
+	)
+	_assert(
+		speed_instance.apply_stat_upgrade(fire_rate_upgrade, -0.20),
+		"upgrade level Attack Speed BasicGun gagal"
+	)
+	_assert(
+		is_equal_approx(speed_instance.get_basic_gun_base_attack_speed(), 1.0),
+		"base Attack Speed berubah saat dihitung"
+	)
+	_assert(
+		is_equal_approx(speed_instance.get_basic_gun_level_attack_speed_reduction(), 0.2),
+		"pengurangan Attack Speed level salah"
+	)
+	_assert(is_equal_approx(speed_instance.get_cooldown(), 0.8), "Attack Speed setelah level bukan 0.8 detik")
+	_assert(
+		speed_build.add_talisman(_find_talisman("attack_speed"), 0.25),
+		"bonus Attack Speed Talisman 25% gagal"
+	)
+	_assert(
+		is_equal_approx(speed_instance.get_basic_gun_talisman_attack_speed_percent(), 0.25),
+		"persentase Attack Speed Talisman salah"
+	)
+	_assert(is_equal_approx(speed_instance.get_cooldown(), 0.64), "Attack Speed akhir bukan 0.64 detik")
+	for _calculation in range(10):
+		_assert(
+			is_equal_approx(speed_instance.get_cooldown(), 0.64),
+			"Attack Speed terakumulasi ganda saat dihitung ulang"
+		)
+	speed_instance.level = 99
+	_assert(is_equal_approx(speed_instance.get_cooldown(), 0.01), "Attack Speed melewati minimum 0.01 detik")
+	_assert(int(speed_build.talisman_levels.get("attack_speed", 0)) == 1, "level Talisman tidak mandiri")
 	for _level in range(2, damage_talisman.max_level + 1):
 		_assert(build.add_talisman(damage_talisman, 0.01), "Talisman gagal mencapai level 99")
 	_assert(int(build.talisman_levels[damage_talisman.id]) == 99, "level Talisman tidak mencapai 99")

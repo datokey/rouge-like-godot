@@ -8,6 +8,7 @@ var owner_node: Node2D
 var weapon_holder: Node
 var modifier_manager
 var is_active := true
+var event_bus: Node
 
 
 func setup(new_owner_node: Node2D, new_weapon_holder: Node, new_modifier_manager) -> void:
@@ -16,7 +17,7 @@ func setup(new_owner_node: Node2D, new_weapon_holder: Node, new_modifier_manager
 	modifier_manager = new_modifier_manager
 	is_active = true
 	var scene_tree := Engine.get_main_loop() as SceneTree
-	var event_bus := scene_tree.root.get_node_or_null("EventBus") if scene_tree != null else null
+	event_bus = scene_tree.root.get_node_or_null("EventBus") if scene_tree != null else null
 	if event_bus != null and not event_bus.player_died.is_connected(shutdown):
 		event_bus.player_died.connect(shutdown)
 
@@ -169,7 +170,33 @@ func _spawn_weapon_node(weapon_instance: WeaponInstance) -> bool:
 		return false
 
 	weapon_holder.add_child(weapon_node)
-	weapon_nodes[weapon_instance.get_weapon_id()] = weapon_node
+	var weapon_id := weapon_instance.get_weapon_id()
+	weapon_nodes[weapon_id] = weapon_node
+	if weapon_node.has_signal("ammo_changed"):
+		weapon_node.connect(
+			"ammo_changed",
+			Callable(self, "_on_weapon_ammo_changed").bind(weapon_id)
+		)
+	if weapon_node.has_signal("reload_changed"):
+		weapon_node.connect(
+			"reload_changed",
+			Callable(self, "_on_weapon_reload_changed").bind(weapon_id)
+		)
 	weapon_node.setup(weapon_instance)
 
 	return true
+
+
+func _on_weapon_ammo_changed(current_ammo: int, capacity: int, weapon_id: String) -> void:
+	if event_bus != null:
+		event_bus.weapon_ammo_changed.emit(weapon_id, current_ammo, capacity)
+
+
+func _on_weapon_reload_changed(
+	is_reloading: bool,
+	remaining_time: float,
+	duration: float,
+	weapon_id: String
+) -> void:
+	if event_bus != null:
+		event_bus.weapon_reload_changed.emit(weapon_id, is_reloading, remaining_time, duration)
