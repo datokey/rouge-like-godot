@@ -15,6 +15,7 @@ var beam_direction := Vector2.RIGHT
 var beam_targets: Array[Node2D] = []
 var beam_lock_elapsed: Array[float] = []
 var beam_out_of_range_elapsed: Array[float] = []
+var beam_damage_remainders: Array[Dictionary] = []
 var retarget_elapsed := 0.0
 var beam_rays: Array[RayCast2D] = []
 var beam_lines: Array[Line2D] = []
@@ -40,6 +41,7 @@ func _on_weapon_setup() -> void:
 	beam_targets.clear()
 	beam_lock_elapsed.clear()
 	beam_out_of_range_elapsed.clear()
+	beam_damage_remainders.clear()
 	_update_laser_visual(Vector2.ZERO)
 
 	var owner_node := get_owner_node()
@@ -153,8 +155,11 @@ func _damage_current_raycast_targets() -> void:
 			continue
 		if index >= beam_directions.size() or beam_directions[index].is_zero_approx():
 			continue
-		var damage_result := get_damage_result()
+		# Selalu ambil ulang dari WeaponInstance pada setiap tick/beam. Jangan cache
+		# nilai ini saat setup karena level dan Talisman dapat berubah saat beam aktif.
+		var damage_result := weapon_instance.get_live_damage_result()
 		_damage_enemies_in_beam(
+			index,
 			beam_rays[index],
 			beam_directions[index],
 			damage_result
@@ -162,6 +167,7 @@ func _damage_current_raycast_targets() -> void:
 
 
 func _damage_enemies_in_beam(
+	beam_index: int,
 	beam_ray: RayCast2D,
 	direction: Vector2,
 	damage_result: Dictionary
@@ -210,10 +216,11 @@ func _damage_enemies_in_beam(
 			break
 
 		var enemy := candidate_enemies[target_index]
-		var damage := roundi(
-			float(damage_result.get("amount", 0))
+		var raw_damage := (
+			float(damage_result.get("raw_amount", damage_result.get("amount", 0)))
 			* weapon_instance.get_beam_damage_multiplier(target_index)
 		)
+		var damage := _consume_fractional_damage(beam_index, target_index, raw_damage)
 		weapon_instance.apply_damage(
 			enemy,
 			maxi(0, damage),
@@ -228,10 +235,22 @@ func _ensure_target_slots(required_count: int) -> void:
 		beam_targets.append(null)
 		beam_lock_elapsed.append(0.0)
 		beam_out_of_range_elapsed.append(0.0)
+		beam_damage_remainders.append({})
 	while beam_targets.size() > required_count:
 		beam_targets.pop_back()
 		beam_lock_elapsed.pop_back()
 		beam_out_of_range_elapsed.pop_back()
+		beam_damage_remainders.pop_back()
+
+
+func _consume_fractional_damage(beam_index: int, target_index: int, raw_damage: float) -> int:
+	if beam_index < 0 or beam_index >= beam_damage_remainders.size():
+		return maxi(0, roundi(raw_damage))
+	var remainders := beam_damage_remainders[beam_index]
+	var accumulated := raw_damage + float(remainders.get(target_index, 0.0))
+	var applied_damage := maxi(0, floori(accumulated + 0.00001))
+	remainders[target_index] = maxf(0.0, accumulated - float(applied_damage))
+	return applied_damage
 
 
 func _update_target_lock_state(delta: float) -> void:

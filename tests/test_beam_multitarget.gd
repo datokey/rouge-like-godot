@@ -160,6 +160,7 @@ func _run() -> void:
 	first.damage_amounts.clear()
 	await physics_frame
 	beam._damage_enemies_in_beam(
+		0,
 		beam.beam_rays[0],
 		Vector2.RIGHT,
 		{"amount": 100, "is_critical": false}

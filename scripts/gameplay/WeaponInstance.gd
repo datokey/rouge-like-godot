@@ -89,19 +89,41 @@ func get_damage() -> int:
 
 func get_damage_result() -> Dictionary:
 	if not is_active:
-		return {"amount": 0, "is_critical": false}
+		return {"amount": 0, "raw_amount": 0.0, "is_critical": false}
 	var damage := get_damage_preview()
 	var is_critical := _roll_critical_hit()
 	if is_critical:
 		damage = roundi(float(damage) * (1.0 + _get_critical_damage()))
-	return {"amount": damage, "is_critical": is_critical}
+	return {
+		"amount": maxi(0, damage),
+		"raw_amount": float(maxi(0, damage)),
+		"is_critical": is_critical,
+	}
+
+
+func get_live_damage_result() -> Dictionary:
+	if not is_active:
+		return {"amount": 0, "raw_amount": 0.0, "is_critical": false}
+	var damage := get_damage_value()
+	var is_critical := _roll_critical_hit()
+	if is_critical:
+		damage *= 1.0 + _get_critical_damage()
+	return {
+		"amount": maxi(0, roundi(damage)),
+		"raw_amount": maxf(0.0, damage),
+		"is_critical": is_critical,
+	}
 
 
 func get_damage_preview() -> int:
+	return maxi(0, roundi(get_damage_value()))
+
+
+func get_damage_value() -> float:
 	var base_damage := _get_float("base_damage", 0.0)
 	var damage_per_level := _get_float("damage_per_level", 0.0)
 	var level_bonus := damage_per_level * float(level - 1)
-	return maxi(0, roundi(_apply_modifiers(base_damage + level_bonus, &"weapon.damage")))
+	return maxf(0.0, _apply_modifiers(base_damage + level_bonus, &"weapon.damage"))
 
 
 func get_cooldown() -> float:
